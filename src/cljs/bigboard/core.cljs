@@ -11,7 +11,8 @@
    [ajax.core :refer [GET POST DELETE]]
    [reitit.core :as reitit]
    [clojure.string :as string]
-   [cljsjs.moment])
+   [cljsjs.moment]
+   [bigboard.ws :as ws])
   (:import goog.History))
 
 (defonce session
@@ -201,10 +202,12 @@
         [:> item "exact matches, alternation, ranges, repetition, shifted repetition, and * accepted"]]
        [cron]
        [:> list {:style {:color "gray" :font-style "italic"}}
-        (for [to (:sims @cron-sim)]
-          [:> item
-           (from "YYYY-MM-DD hh:mm:ss"
-                 (:from @cron-sim) to)])]
+        (doall
+         (for [to (:sims @cron-sim)]
+           ^{:key to}
+           [:> item
+            (from "YYYY-MM-DD hh:mm:ss"
+                  (:from @cron-sim) to)]))]
        (when (some? @add-schedule-err)
          [:> message {:negative true}
           [:> header (:header @add-schedule-err)]
@@ -266,7 +269,8 @@
                    :handler
                    #(do
                       (reset! add-schedule-err nil)
-                      (reset! new-modal? false))}))))}
+                      (reset! new-modal? false)
+                      (ws/send-transit-msg! {:cmd :refresh :element :schedules}))}))))}
      "Add"]))
 
 (defn new-modal []
@@ -297,6 +301,8 @@
   (DELETE
    "/schedules"
    {:params {:name name}
+    :handler
+    #(ws/send-transit-msg! {:cmd :refresh :element :schedules})
     :error-handler
     #(reset! top-err
              {:header (str "There was a problem unscheduling \"" name "\"")
@@ -357,9 +363,13 @@
 
 (defn cards []
   (let [group (component "Card" "Group")]
-    [:> group {:itemsPerRow 4 :style {:margin-top "80px"}}
-     (for [c @schedules]
-       [card c])]))
+    [:> group {:itemsPerRow 4
+               :stackable true
+               :style {:margin-top "80px"}}
+     (doall
+      (for [c @schedules]
+        ^{:key (:name c)}
+        [card c]))]))
 
 (defn home-page []
   (let [container (component "Container")
@@ -411,7 +421,20 @@
   (rdom/render [#'navbar] (.getElementById js/document "navbar"))
   (rdom/render [#'page] (.getElementById js/document "app")))
 
+(defn refresh-handler [{:keys [element] :as msg}]
+  (case element
+    :schedules (request-schedules)
+    (.debug js/console "Unknown refresh element: " element)))
+
+(defn notification-handler [{:keys [cmd] :as msg}]
+  (case cmd
+    :refresh (refresh-handler msg)
+    (.debug js/console ("Unknown command: " cmd))))
+
 (defn init! []
   (ajax/load-interceptors!)
+  (ws/make-websocket!
+   (str "ws://" (.-host js/location) "/ws")
+   notification-handler)
   (hook-browser-navigation!)
   (mount-components))

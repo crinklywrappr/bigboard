@@ -4,6 +4,7 @@
     [bigboard.layout :refer [error-page]]
     [bigboard.routes.home :refer [home-routes]]
     [bigboard.routes.rest :refer [rest-routes]]
+    [bigboard.routes.ws :refer [ws-routes]]
     [reitit.ring :as ring]
     [ring.middleware.content-type :refer [wrap-content-type]]
     [ring.middleware.webjars :refer [wrap-webjars]]
@@ -19,7 +20,8 @@
   (ring/ring-handler
    (ring/router
     [(home-routes)
-     (rest-routes)])
+     (rest-routes)
+     ws-routes])
    (ring/routes
     (ring/create-resource-handler
      {:path "/"})
