@@ -13,8 +13,8 @@
    [clojure.string :as str]))
 
 (defn reporters [request]
-  (if (string? (:reporters-dir cfg/env))
-    (let [dir (io/file (:reporters-dir cfg/env))]
+  (if (string? (-> cfg/env :bigboard :reporters))
+    (let [dir (io/file (-> cfg/env :bigboard :reporters))]
       (if (.exists dir)
         (try
           (response/ok
@@ -34,10 +34,10 @@
         (response/expectation-failed
          (str "Reporters directory does not exist.  "
               "Either create the directory ("
-              (:reporters-dir cfg/env)
-              "), or change the config (:reporters-dir)"))))
+              (-> cfg/env :bigboard :reporters)
+              "), or change the BIGBOARD__REPORTERS"))))
     (response/expectation-failed
-     (str ":reporters-dir missing or invalid in config file"))))
+     (str "BIGBOARD__REPORTERS missing or invalid"))))
 
 (defn simulate [{:keys [params]}]
   (try
@@ -100,7 +100,7 @@
     (catch Exception e
       (response/internal-server-error))))
 
-;; websockets for push notifications and actual scheduling are next
+;; actual scheduling is next
 (defn rest-routes []
   [""
    {:middleware [middleware/wrap-csrf
