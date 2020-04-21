@@ -265,7 +265,8 @@
                        (reset! add-schedule-err (:response resp))
                        (case (-> resp :response :reason)
                          :cron (reset! cron-err (-> resp :response :msg))
-                         :name (reset! name-err (-> resp :response :msg)))))
+                         :name (reset! name-err (-> resp :response :msg))
+                         :story (reset! story-err (-> resp :response :msg)))))
                    :handler
                    #(do
                       (reset! add-schedule-err nil)

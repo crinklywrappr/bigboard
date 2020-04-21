@@ -59,10 +59,18 @@
     (catch Exception e
       [false (.getMessage e)])))
 
+(def x (atom nil))
+
 (defn constraint-violation? [exception]
   (= (type (.getCause exception))
      org.h2.jdbc.JdbcSQLIntegrityConstraintViolationException))
 
+(defn duplicate-story? [exception]
+  (str/includes?
+   (.getMessage (.getCause exception))
+   "UNIQUE_STORIES"))
+
+;; TODO: Add filename extension verification
 (defn add-schedule [{:keys [name story contact
                             short-desc long-desc
                             trouble reporter cron]
@@ -77,8 +85,11 @@
         (response/ok)
         (catch Exception e
           (if (constraint-violation? e)
-            (response/bad-request
-             {:reason :name :msg "Name already exists"})
+            (if (duplicate-story? e)
+              (response/bad-request
+               {:reason :story :msg "Story already exists"})
+              (response/bad-request
+               {:reason :name :msg "Name already exists"}))
             (response/internal-server-error
              {:header "Database error occurred."
               :troubleshoot "Contact System Administrator."}))))
