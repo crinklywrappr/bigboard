@@ -1,9 +1,16 @@
 (ns bigboard.routes.ws
   (:require
    [clojure.tools.logging :as log]
-   [immutant.web.async :as async]))
+   [immutant.web.async :as async]
+   [cognitect.transit :as t])
+  (:import [java.io ByteArrayOutputStream]))
 
 (defonce channels (atom #{}))
+
+(defn edn->transit [edn]
+  (let [out (ByteArrayOutputStream. 4096)]
+    (t/write (t/writer out :json) edn)
+    (.toString out)))
 
 (defn connect! [channel]
   (log/info "channel open")

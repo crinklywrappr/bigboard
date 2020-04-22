@@ -392,7 +392,8 @@
         {:basic true
          :disabled (some (partial = state) [:mia :bad :running])
          :color "blue"
-         :icon "terminal"}]
+         :icon "terminal"
+         :onClick #(POST "/trigger" {:params {:name name}})}]
        [:> button
         {:basic true
          :disabled (some (partial = state) [:mia :bad :no-story :new :running])

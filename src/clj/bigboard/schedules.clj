@@ -1,9 +1,74 @@
 (ns bigboard.schedules
   (:require [bigboard.config :as cfg]
             [bigboard.db.model :as db]
+            [bigboard.routes.ws :as ws]
             [gooff.core :as go]
-            [clojure.java.io :as io])
-  (:import [java.sql Timestamp]))
+            [mount.core :refer [defstate]]
+            [clojure.java.io :as io]
+            [clojure.java.shell :refer [sh]])
+  (:import [java.sql Timestamp]
+           [java.io File]))
+
+(def notify-clients! (partial ws/notify-clients! nil))
+
+(defn story-path
+  ([file]
+   (-> cfg/env :bigboard :stories
+       (str File/separator file)))
+  ([file ext]
+   (-> cfg/env :bigboard :stories
+       (str File/separator file "." ext))))
+
+(defn reporter-path [file]
+  (-> cfg/env :bigboard :reporters
+      (str File/separator file)))
+
+(defn delete-old-story [prefix]
+  (io/delete-file (story-path prefix) :story)
+  (io/delete-file (story-path prefix "prob") :prob)
+  (io/delete-file (story-path prefix "err") :error))
+
+(defn make-error-file [prefix exception]
+  (let [filename (story-path prefix "err")]
+    (when (not (.exists (io/file filename)))
+      (spit filename (.getMessage exception)))))
+
+(defn run-schedule
+  "Returns a function which executes the schedule in this order:
+  1. update last-trigger
+  2. notify clients
+  3. delete old story
+  4. run reporter and update exit-code & last-finished
+  4a. generate error report if one occurs and the script did not make one
+  5. notify clients"
+  [{:keys [name story reporter]}]
+  (fn []
+    (db/record-trigger name)
+    (notify-clients!
+     (ws/edn->transit
+      {:cmd :refresh :element :schedules}))
+    (delete-old-story story)
+    (let [rp (reporter-path reporter)]
+      (when (.exists (io/file rp))
+        (try
+          (->> rp sh :exit
+               (db/record-finished name))
+          (catch Exception e
+            (db/record-finished name 1)
+            (make-error-file story e)))))
+    (notify-clients!
+     (ws/edn->transit
+      {:cmd :refresh :element :schedules}))))
+
+(comment
+  (defstate schedules
+    :start (doseq [sched (db/get-schedules)]
+             (go/add-schedule
+              (:name sched)
+              (go/cron (:cron sched))
+              (run-schedule sched)))
+    :stop (do (go/stop)
+              (go/clear-schedule))))
 
 (defn cron? [s]
   (try
@@ -15,9 +80,9 @@
 (defn state
   "Looks for a .prob file *first*"
   [{:keys [last-triggered last-finished] :as sched}]
-  (let [reporter (io/file (str (-> cfg/env :bigboard :reporters) "\\" (:reporter sched)))
-        story (io/file (str (-> cfg/env :bigboard :stories) "\\" (:story sched)))
-        prob (io/file (str (-> cfg/env :bigboard :stories) "\\" (:story sched) ".prob"))
+  (let [reporter (io/file (reporter-path (:reporter sched)))
+        story (io/file (story-path (:story sched)))
+        prob (io/file (story-path (:story sched) ".prob"))
         [good? _] (cron? (:cron sched))]
     (cond
       (not (.exists reporter)) :mia
@@ -37,3 +102,5 @@
           :stale
           type)))))
 
+(defn next-run [nm]
+  ())

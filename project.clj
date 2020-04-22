@@ -35,7 +35,7 @@
                  [ring/ring-defaults "0.3.2"]
                  [selmer "1.12.19"]
                  [cljsjs/semantic-ui-react "0.88.1-0"]
-                 [gooff "0.0.1"]
+                 [gooff "0.0.2"]
                  [cljsjs/moment "2.24.0-0"]]
 
   :min-lein-version "2.0.0"

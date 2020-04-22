@@ -105,6 +105,15 @@
     (catch Exception e
       (response/internal-server-error))))
 
+(defn trigger [name]
+  (try
+    ((sched/run-schedule
+      (db/get-schedule name)))
+    (response/ok)
+    (catch Exception e
+      (response/internal-server-error
+       (.getMessage e)))))
+
 ;; actual scheduling is next
 (defn rest-routes []
   [""
@@ -114,4 +123,5 @@
    ["/simulate" {:get simulate}]
    ["/schedules" {:post #(add-schedule (:params %))
                   :get schedules
-                  :delete #(del-schedule (:params %))}]])
+                  :delete #(del-schedule (:params %))}]
+   ["/trigger" {:post #(trigger (-> % :params :name))}]])
