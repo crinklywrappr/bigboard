@@ -50,6 +50,7 @@
 
 (def schedules (r/atom nil))
 
+;; TODO: more complicated comparator needed here
 (defn request-schedules []
   (letfn [(created [m]
             (update m :created #(js/moment (.-rep %))))
@@ -340,7 +341,7 @@
                       (reset! del? false))}
          "Yes"]]])))
 
-;; TODO: card color, next runtime (last-runtime or last-triggered???)
+;; TODO: card color, other specialties based on state. next runtime.
 (defn card [{:keys [name contact short-desc cron reporter] :as sched}]
   (let [card (component "Card")
         content (component "Card" "Content")

@@ -4,6 +4,7 @@
    [bigboard.middleware :as middleware]
    [bigboard.config :as cfg]
    [bigboard.db.model :as db]
+   [bigboard.schedules :as sched]
    [ring.util.response]
    [ring.util.http-response :as response]
    [clojure.tools.logging :as log]
@@ -52,15 +53,6 @@
       (response/service-unavailable
        (.getMessage e)))))
 
-(defn cron? [s]
-  (try
-    (go/cron s)
-    [true ""]
-    (catch Exception e
-      [false (.getMessage e)])))
-
-(def x (atom nil))
-
 (defn constraint-violation? [exception]
   (= (type (.getCause exception))
      org.h2.jdbc.JdbcSQLIntegrityConstraintViolationException))
@@ -75,7 +67,7 @@
                             short-desc long-desc
                             trouble reporter cron]
                      :as params}]
-  (let [[v e] (cron? cron)]
+  (let [[v e] (sched/cron? cron)]
     (if v
       (try
         (db/add-schedule!
@@ -99,7 +91,9 @@
 (defn schedules [_]
   (try
     (response/ok
-     (db/get-schedules))
+     (map
+      #(assoc % :state (sched/state %))
+      (db/get-schedules)))
     (catch Exception e
       (response/internal-server-error))))
 

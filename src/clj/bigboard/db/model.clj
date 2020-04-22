@@ -12,20 +12,52 @@
     :short-desc short-desc :long-desc long-desc
     :trouble trouble :reporter reporter :cron cron}))
 
+(defn fix-exit-code
+  "Used for retrieval"
+  [cd]
+  (when (some? cd)
+    (+' cd 128)))
+
+(defn stream->text
+  [ntext]
+  (let [r (.getCharacterStream ntext)]
+    (-> "line.separator"
+        System/getProperty
+        (s/join (line-seq r)))))
+
 (defn get-schedules []
-  (letfn [(f [ntext]
-            (let [r (.getCharacterStream ntext)]
-              (-> "line.separator"
-                  System/getProperty
-                  (s/join (line-seq r)))))]
-    (map
-     (fn [m]
-       (-> m
-           (update :long-desc f)
-           (update :trouble f)))
-     (db/query-embedded :get-schedules))))
+  (map
+   (fn [m]
+     (-> m
+         (update :long-desc stream->text)
+         (update :trouble stream->text)
+         (update :exit-code fix-exit-code)))
+   (db/query-embedded :get-schedules)))
 
 (defn unschedule [name]
   (db/query-embedded
    :unschedule
    {:name name}))
+
+(defn record-trigger [name]
+  (db/query-embedded
+   :record-trigger
+   {:name name}))
+
+(defn record-finished
+  "Subtracts 128 from exit code in order to fit
+  inside a tinyint, which is -128 to 127"
+  [name exit-code]
+  (db/query-embedded
+   :record-finished
+   {:name name
+    :code (- exit-code 128)}))
+
+(defn get-schedule [name]
+  (->
+   (db/query-embedded
+    :get-schedule
+    {:name name})
+   (update :long-desc stream->text)
+   (update :trouble stream->text)
+   (update :exit-code fix-exit-code)))

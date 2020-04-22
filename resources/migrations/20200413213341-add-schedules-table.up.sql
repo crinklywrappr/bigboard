@@ -8,6 +8,6 @@ CREATE TABLE schedules
    reporter NVARCHAR(255) NOT NULL,
    cron VARCHAR(256) NOT NULL,
    created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-   last_triggered TIMESTAMP WITH TIME ZONE DEFAULT NULL,
+   last_triggered TIMESTAMP DEFAULT NULL,
    CONSTRAINT schedules_pk PRIMARY KEY(name),
    CONSTRAINT unique_stories UNIQUE(story));
