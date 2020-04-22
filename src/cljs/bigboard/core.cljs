@@ -50,7 +50,7 @@
 
 (def schedules (r/atom nil))
 
-;; TODO: more complicated comparator needed here
+;; TODO: more complicated comparator needed here (maybe???)
 (defn request-schedules []
   (letfn [(created [m]
             (update m :created #(js/moment (.-rep %))))
@@ -310,7 +310,7 @@
              {:header (str "There was a problem unscheduling \"" name "\"")
               :troubleshoot "Contact your System Administrator"})}))
 
-(defn delete-modal [name]
+(defn delete-modal [name state]
   (let [group (component "Button" "Group")
         button (component "Button")
         or (component "Button" "Or")
@@ -329,6 +329,7 @@
          [:> button {:basic true
                      :color "red"
                      :icon "delete"
+                     :disabled (= state :running) 
                      :onClick #(reset! del? true)}])}
        [:> header
         {:icon "delete"
@@ -341,8 +342,24 @@
                       (reset! del? false))}
          "Yes"]]])))
 
+(defn get-card-color
+  "Blue -> System administrator should troubleshoot schedule
+  Green -> Normal operation
+  Yellow -> Normal operation but the reporter found some problems
+  Red -> Reporter exited uncleanly - a story *may* be available
+  Gray -> Story is old - The reporter does not seem to be producing a story"
+  [state]
+  (cond
+    (some (partial = state) [:mia :bad :no-story]) "blue"
+    (some (partial = state) [:new :running :success]) "green"
+    (= state :problem) "yellow"
+    (= state :error) "red"
+    (= state :stale) "gray"))
+
 ;; TODO: card color, other specialties based on state. next runtime.
-(defn card [{:keys [name contact short-desc cron reporter] :as sched}]
+(defn card [{:keys [name contact short-desc
+                    cron reporter state]
+             :as sched}]
   (let [card (component "Card")
         content (component "Card" "Content")
         header (component "Card" "Header")
@@ -350,18 +367,37 @@
         desc (component "Card" "Description")
         button-group (component "Button" "Group")
         button (component "Button")
-        card-color "green"]
+        icon (component "Icon")
+        card-color (get-card-color state)]
     [:> card {:color card-color}
      [:> content
+      (cond
+        (some (partial = state) [:mia :bad :no-story])
+        [:> icon {:style {:float "right"}
+                  :size "big"
+                  :name "exclamation"}]
+        (= state :running)
+        [:> icon {:style {:float "right"}
+                  :size "big"
+                  :loading true
+                  :name "spinner"}])
       [:> header name]
       [:> meta contact]
       [:> desc short-desc]]
      [:> content {:extra true}
       [:> button-group {:class ["four"]}
-       [delete-modal name]
+       [delete-modal name state]
        [:> button {:basic true :color "yellow" :icon "edit"}]
-       [:> button {:basic true :color "blue" :icon "terminal"}]
-       [:> button {:basic true :color card-color :icon "arrow right"}]]]]))
+       [:> button
+        {:basic true
+         :disabled (some (partial = state) [:mia :bad :running])
+         :color "blue"
+         :icon "terminal"}]
+       [:> button
+        {:basic true
+         :disabled (some (partial = state) [:mia :bad :no-story :new :running])
+         :color "green"
+         :icon "arrow right"}]]]]))
 
 (defn cards []
   (let [group (component "Card" "Group")]
