@@ -12,7 +12,8 @@
    [reitit.core :as reitit]
    [clojure.string :as string]
    [cljsjs.moment]
-   [bigboard.ws :as ws])
+   [bigboard.ws :as ws]
+   [bigboard.db :as db])
   (:import goog.History))
 
 (defonce session
@@ -45,84 +46,17 @@
       [:a.item.header {:href "/"} "bigboard"]
       [nav-link "/" "home" :home]]]))
 
-;; expects a map with header and troubleshoot keys
-(def top-err (r/atom nil))
+(db/request-reporters)
 
-(def schedules (r/atom nil))
-
-;; TODO: more complicated comparator needed here (maybe???)
-(defn request-schedules []
-  (letfn [(created [m]
-            (update m :created #(js/moment (.-rep %))))
-          (cmp [a b]
-            (if (.isBefore a b)
-              1 -1))]
-    (GET "/schedules"
-         {:handler
-          #(do
-             (reset! schedules
-                     (sort-by :created cmp (map created %)))
-             (reset! top-err nil))
-          :error-handler
-          #(do
-             (reset! top-err
-                     {:header "Problem Loading Schedules"
-                      :troubleshoot "Contact your System Administrator"})
-             (reset! schedules nil))})))
-
-(defn merge-schedule [name delta]
-  (swap!
-   schedules
-   (fn [schedules]
-     (map
-      #(if (= (:name %) name)
-         (merge % delta)
-         %)
-      schedules))))
-
-(defn replace-schedule [{:keys [name] :as new}]
-  (swap!
-   schedules
-   (fn [schedules]
-     (map
-      #(if (= (:name %) name)
-         new %)
-      schedules))))
-
-(defn schedule-error [name]
-  (merge-schedule name {:status :server-error}))
-
-(defn request-schedule [name]
-  (GET (str "/schedules?name=" name)
-       {:handler #(replace-schedule (assoc % :name name))
-        :error-handler #(schedule-error name)}))
-
-;; reporters ui state management is complex
-;; we request the file/file-err on page load
-;; everytime the reporters select box is rendered we check for an error
-;; but DONT check for or empty the file list
-(def file-err (r/atom nil))
-(def files (r/atom []))
-
-(GET "/reporters"
-     {:handler #(do
-                  (reset! files (mapv (fn [f] {:key f :text f :value f}) %))
-                  (reset! file-err nil))
-      :error-handler #(do
-                        (reset! file-err (:response %))
-                        (reset! files nil))})
-
+;; TODO: ADD A BUTTON TO REFRESH LIST
 (defn reporters []
-  (let [select (component "Form" "Select")
-        _ (GET "/reporters"
-               {:handler (constantly nil)
-                :error-handler #(reset! file-err (:response %))})]
+  (let [select (component "Form" "Select")]
     [:> select
      {:id "reporter"
       :fluid true
-      :error @file-err
+      :error @db/reporters-err
       :label "Executable"
-      :options @files
+      :options @db/reporters
       :placeholder "Choose file"
       :required true
       :onChange (fn [_ x]
@@ -187,7 +121,7 @@
         _ (reset! story-err nil)
         _ (reset! contact-err nil)
         _ (reset! short-desc-err nil)
-        _ (reset! file-err nil)]
+        _ (reset! db/reporters-err nil)]
     (fn []
       [:> form
        [:> input {:label "Name (28 chars)"
@@ -255,8 +189,8 @@
     (reset! short-desc-err "This field is required")
     (reset! short-desc-err nil))
   (if (nil? reporter)
-    (reset! file-err "This field is required")
-    (reset! file-err nil))
+    (reset! db/reporters "This field is required")
+    (reset! db/reporters nil))
   (if (= cron "")
     (reset! cron-err "This field is required")
     (reset! cron-err nil))
@@ -278,28 +212,26 @@
                      (map (comp keyword #(.-id %)) req)
                      (map val req))]
           (when (validate input)
-            (POST "/schedules"
-                  {:params
-                   (assoc input
-                          :trouble (.-value
-                                    (.getElementById
-                                     js/document "trouble"))
-                          :long-desc (.-value
-                                      (.getElementById
-                                       js/document "long-desc")))
-                   :error-handler
-                   (fn [resp]
-                     (if (== (:status resp) 500)
-                       (reset! add-schedule-err (:response resp))
-                       (case (-> resp :response :reason)
-                         :cron (reset! cron-err (-> resp :response :msg))
-                         :name (reset! name-err (-> resp :response :msg))
-                         :story (reset! story-err (-> resp :response :msg)))))
-                   :handler
-                   #(do
-                      (reset! add-schedule-err nil)
-                      (reset! new-modal? false)
-                      (ws/send-transit-msg! {:cmd :refresh :element :schedules}))}))))}
+            (db/add-schedule
+             (assoc
+              input
+              :trouble (.-value
+                        (.getElementById
+                         js/document "trouble"))
+              :long-desc (.-value
+                          (.getElementById
+                           js/document "long-desc")))
+             {:handler
+              #(do (reset! add-schedule-err nil)
+                   (reset! new-modal? false))
+              :error-handler
+              (fn [resp]
+                (if (== (:status resp) 500)
+                  (reset! add-schedule-err (:response resp))
+                  (case (-> resp :response :reason)
+                    :cron (reset! cron-err (-> resp :response :msg))
+                    :name (reset! name-err (-> resp :response :msg))
+                    :story (reset! story-err (-> resp :response :msg)))))}))))}
      "Add"]))
 
 (defn new-modal []
@@ -326,17 +258,6 @@
      [:> actions
       [submit-button]]]))
 
-(defn delete-schedule [name]
-  (DELETE
-   "/schedules"
-   {:params {:name name}
-    :handler
-    #(ws/send-transit-msg! {:cmd :refresh :element :schedules})
-    :error-handler
-    #(reset! top-err
-             {:header (str "There was a problem unscheduling \"" name "\"")
-              :troubleshoot "Contact your System Administrator"})}))
-
 (defn delete-modal [name status]
   (let [group (component "Button" "Group")
         button (component "Button")
@@ -356,7 +277,7 @@
          [:> button {:basic true
                      :color "red"
                      :icon "delete"
-                     :disabled (= status :running) 
+                     :disabled (= status :running)
                      :onClick #(reset! del? true)}])}
        [:> header
         {:icon "delete"
@@ -365,7 +286,7 @@
         [:> button
          {:color "red"
           :onClick #(do
-                      (delete-schedule name)
+                      (db/delete-schedule name)
                       (reset! del? false))}
          "Yes"]]])))
 
@@ -443,7 +364,7 @@
                :stackable true
                :style {:margin-top "80px"}}
      (doall
-      (for [c @schedules]
+      (for [c @db/schedules]
         ^{:key (:name c)}
         [card c]))]))
 
@@ -451,14 +372,14 @@
   (let [container (component "Container")
         message (component "Message")
         header (component "Message" "Header")
-        _ (request-schedules)]
+        _ (db/request-schedules)]
     (fn []
       [:> container {:style {:margin-top "100px"}}
        [new-modal]
-       (when (some? @top-err)
+       (when (some? @db/schedules-err)
          [:> message {:negative true}
-          [:> header (:header @top-err)]
-          [:p (:troubleshoot @top-err)]])
+          [:> header (:header @db/schedules-err)]
+          [:p (:troubleshoot @db/schedules-err)]])
        [cards]])))
 
 (def pages
@@ -497,42 +418,10 @@
   (rdom/render [#'navbar] (.getElementById js/document "navbar"))
   (rdom/render [#'page] (.getElementById js/document "app")))
 
-(defn refresh-handler [{:keys [element] :as msg}]
-  (case element
-    :schedules (request-schedules)
-    :schedule (request-schedule (:name msg))
-    (.debug js/console "Unknown refresh element: " element)))
-
-(defn merge-handler [{:keys [element] :as msg}]
-  (case element
-    :schedule (merge-schedule (:name msg) (:delta msg))
-    (.debug js/console "Unknown merge element: " element)))
-
-(defn replace-handler [{:keys [element] :as msg}]
-  (case element
-    :schedule (replace-schedule (:new msg))
-    (.debug js/console "Unknown replace element: " element)))
-
-(defn error-handler [{:keys [element] :as msg}]
-  (case element
-    :schedule (schedule-error (:name msg))
-    (.debug js/console "Unknown error element: " element)))
-
-(def x (atom nil))
-
-(defn notification-handler [{:keys [cmd] :as msg}]
-  (reset! x msg)
-  (case cmd
-    :refresh (refresh-handler msg)
-    :merge (merge-handler msg)
-    :replace (replace-handler msg)
-    :error (error-handler msg)
-    (.debug js/console ("Unknown command: " cmd))))
-
 (defn init! []
   (ajax/load-interceptors!)
   (ws/make-websocket!
    (str "ws://" (.-host js/location) "/ws")
-   notification-handler)
+   db/notification-handler)
   (hook-browser-navigation!)
   (mount-components))

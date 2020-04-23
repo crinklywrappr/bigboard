@@ -72,7 +72,9 @@
   3. delete old story
   4. run reporter and update exit-code & last-finished
   4a. generate error report if one occurs and the script did not make one
-  5. notify clients"
+  5. notify clients
+
+  Notifies clients if any error occured not on steps 4 or 4a"
   [{:keys [name story reporter]}]
   (fn []
     (try
