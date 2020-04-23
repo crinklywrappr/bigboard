@@ -200,27 +200,31 @@
 
 (def new-modal? (r/atom false))
 
+(defn build-schedule-from-input []
+  (let [val (fn [node] (or (.-value node) (.getAttribute node "value")))
+        req (array-seq (.querySelectorAll js/document "[required]"))
+        input (zipmap
+               (map (comp keyword #(.-id %)) req)
+               (map val req))]
+    (assoc
+     input
+     :trouble (.-value
+               (.getElementById
+                js/document "trouble"))
+     :long-desc (.-value
+                 (.getElementById
+                  js/document "long-desc")))))
+
 (defn submit-button []
   (let [button (component "Button")]
     [:> button
      {:primary true
       :onClick
       (fn [& args]
-        (let [val (fn [node] (or (.-value node) (.getAttribute node "value")))
-              req (array-seq (.querySelectorAll js/document "[required]"))
-              input (zipmap
-                     (map (comp keyword #(.-id %)) req)
-                     (map val req))]
-          (when (validate input)
+        (let [speculative-schedule (build-schedule-from-input)]
+          (when (validate speculative-schedule)
             (db/add-schedule
-             (assoc
-              input
-              :trouble (.-value
-                        (.getElementById
-                         js/document "trouble"))
-              :long-desc (.-value
-                          (.getElementById
-                           js/document "long-desc")))
+             speculative-schedule
              {:handler
               #(do (reset! add-schedule-err nil)
                    (reset! new-modal? false))
