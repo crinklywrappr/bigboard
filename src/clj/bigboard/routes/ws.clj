@@ -2,14 +2,19 @@
   (:require
    [clojure.tools.logging :as log]
    [immutant.web.async :as async]
-   [cognitect.transit :as t])
+   [cognitect.transit :as t]
+   [luminus-transit.time :as time])
   (:import [java.io ByteArrayOutputStream]))
 
 (defonce channels (atom #{}))
 
 (defn edn->transit [edn]
   (let [out (ByteArrayOutputStream. 4096)]
-    (t/write (t/writer out :json) edn)
+    (t/write
+     (t/writer
+      out :json
+      time/time-serialization-handlers)
+     edn)
     (.toString out)))
 
 (defn connect! [channel]

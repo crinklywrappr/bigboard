@@ -88,14 +88,24 @@
       (response/bad-request
        {:reason :cron :msg e}))))
 
-(defn schedules [_]
+(defn schedule [name]
   (try
-    (response/ok
-     (map
-      #(assoc % :state (sched/state %))
-      (db/get-schedules)))
+    (let [schedule (db/get-schedule name)]
+      (response/ok
+       (assoc schedule :status (sched/status schedule))))
     (catch Exception e
       (response/internal-server-error))))
+
+(defn schedules [{:keys [params]}]
+  (if (seq params)
+    (schedule (:name params))
+    (try
+      (response/ok
+       (map
+        #(assoc % :status (sched/status %))
+        (db/get-schedules)))
+      (catch Exception e
+        (response/internal-server-error)))))
 
 (defn del-schedule [{:keys [name] :as params}]
   (try

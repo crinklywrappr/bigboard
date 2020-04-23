@@ -70,6 +70,33 @@
                       :troubleshoot "Contact your System Administrator"})
              (reset! schedules nil))})))
 
+(defn merge-schedule [name delta]
+  (swap!
+   schedules
+   (fn [schedules]
+     (map
+      #(if (= (:name %) name)
+         (merge % delta)
+         %)
+      schedules))))
+
+(defn replace-schedule [{:keys [name] :as new}]
+  (swap!
+   schedules
+   (fn [schedules]
+     (map
+      #(if (= (:name %) name)
+         new %)
+      schedules))))
+
+(defn schedule-error [name]
+  (merge-schedule name {:status :server-error}))
+
+(defn request-schedule [name]
+  (GET (str "/schedules?name=" name)
+       {:handler #(replace-schedule (assoc % :name name))
+        :error-handler #(schedule-error name)}))
+
 ;; reporters ui state management is complex
 ;; we request the file/file-err on page load
 ;; everytime the reporters select box is rendered we check for an error
@@ -310,7 +337,7 @@
              {:header (str "There was a problem unscheduling \"" name "\"")
               :troubleshoot "Contact your System Administrator"})}))
 
-(defn delete-modal [name state]
+(defn delete-modal [name status]
   (let [group (component "Button" "Group")
         button (component "Button")
         or (component "Button" "Or")
@@ -329,7 +356,7 @@
          [:> button {:basic true
                      :color "red"
                      :icon "delete"
-                     :disabled (= state :running) 
+                     :disabled (= status :running) 
                      :onClick #(reset! del? true)}])}
        [:> header
         {:icon "delete"
@@ -348,17 +375,17 @@
   Yellow -> Normal operation but the reporter found some problems
   Red -> Reporter exited uncleanly - a story *may* be available
   Gray -> Story is old - The reporter does not seem to be producing a story"
-  [state]
+  [status]
   (cond
-    (some (partial = state) [:mia :bad :no-story]) "blue"
-    (some (partial = state) [:new :running :success]) "green"
-    (= state :problem) "yellow"
-    (= state :error) "red"
-    (= state :stale) "gray"))
+    (some (partial = status) [:mia :bad :no-story]) "blue"
+    (some (partial = status) [:new :running :success]) "green"
+    (= status :problem) "yellow"
+    (= status :error) "red"
+    (= status :stale) "gray"))
 
-;; TODO: card color, other specialties based on state. next runtime.
+;; TODO: card color, other specialties based on status. next runtime.
 (defn card [{:keys [name contact short-desc
-                    cron reporter state]
+                    cron reporter status]
              :as sched}]
   (let [card (component "Card")
         content (component "Card" "Content")
@@ -368,35 +395,45 @@
         button-group (component "Button" "Group")
         button (component "Button")
         icon (component "Icon")
-        card-color (get-card-color state)]
+        dimmer (component "Dimmer")
+        dimmable (component "Dimmer" "Dimmable")
+        loader (component "Loader")
+        card-color (get-card-color status)]
     [:> card {:color card-color}
-     [:> content
+     [:> dimmable
+      {:as content}
       (cond
-        (some (partial = state) [:mia :bad :no-story])
+        (= status :running)
+        [:> dimmer
+         {:active true
+          :inverted true}
+         [:> loader "Running"]]
+        (= status :server-error)
+        [:> dimmer
+         {:active true
+          :style {:backgroundColor "rgba(183, 28, 28, 0.85)"}}
+         "Server Error"]
+        :else [:> dimmer {:active false}])
+      (when (some (partial = status) [:mia :bad :no-story])
         [:> icon {:style {:float "right"}
                   :size "big"
-                  :name "exclamation"}]
-        (= state :running)
-        [:> icon {:style {:float "right"}
-                  :size "big"
-                  :loading true
-                  :name "spinner"}])
+                  :name "exclamation"}])
       [:> header name]
       [:> meta contact]
       [:> desc short-desc]]
      [:> content {:extra true}
       [:> button-group {:class ["four"]}
-       [delete-modal name state]
+       [delete-modal name status]
        [:> button {:basic true :color "yellow" :icon "edit"}]
        [:> button
         {:basic true
-         :disabled (some (partial = state) [:mia :bad :running])
+         :disabled (some (partial = status) [:mia :bad :running])
          :color "blue"
          :icon "terminal"
          :onClick #(POST "/trigger" {:params {:name name}})}]
        [:> button
         {:basic true
-         :disabled (some (partial = state) [:mia :bad :no-story :new :running])
+         :disabled (some (partial = status) [:mia :bad :no-story :new :running])
          :color "green"
          :icon "arrow right"}]]]]))
 
@@ -463,11 +500,33 @@
 (defn refresh-handler [{:keys [element] :as msg}]
   (case element
     :schedules (request-schedules)
+    :schedule (request-schedule (:name msg))
     (.debug js/console "Unknown refresh element: " element)))
 
+(defn merge-handler [{:keys [element] :as msg}]
+  (case element
+    :schedule (merge-schedule (:name msg) (:delta msg))
+    (.debug js/console "Unknown merge element: " element)))
+
+(defn replace-handler [{:keys [element] :as msg}]
+  (case element
+    :schedule (replace-schedule (:new msg))
+    (.debug js/console "Unknown replace element: " element)))
+
+(defn error-handler [{:keys [element] :as msg}]
+  (case element
+    :schedule (schedule-error (:name msg))
+    (.debug js/console "Unknown error element: " element)))
+
+(def x (atom nil))
+
 (defn notification-handler [{:keys [cmd] :as msg}]
+  (reset! x msg)
   (case cmd
     :refresh (refresh-handler msg)
+    :merge (merge-handler msg)
+    :replace (replace-handler msg)
+    :error (error-handler msg)
     (.debug js/console ("Unknown command: " cmd))))
 
 (defn init! []
