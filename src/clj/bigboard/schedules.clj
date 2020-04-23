@@ -107,15 +107,16 @@
            :element :schedule
            :name name}))))))
 
-(comment
-  (defstate schedules
-    :start (doseq [sched (db/get-schedules)]
-             (go/add-schedule
-              (:name sched)
-              (go/cron (:cron sched))
-              (run-schedule sched)))
-    :stop (do (go/stop)
-              (go/clear-schedule))))
+(defstate schedules
+  :start (doseq [sched (db/get-schedules)]
+           (go/add-schedule
+            (:name sched)
+            (go/cron (:cron sched))
+            (run-schedule sched))
+           (go/start (:name sched)))
+  :stop (do
+          (go/stop)
+          (go/clear-schedule)))
 
 (defn cron? [s]
   (try
