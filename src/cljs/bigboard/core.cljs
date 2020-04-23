@@ -52,13 +52,14 @@
 (defn reporters []
   (let [select (component "Form" "Select")]
     [:> select
-     {:id "reporter"
-      :fluid true
+     {:fluid true
       :error @db/reporters-err
-      :label "Executable"
+      :label {:children "Executable" :htmlFor "reporter"}
       :options @db/reporters
       :placeholder "Choose file"
       :required true
+      :search true
+      :searchInput {:id "reporter"}
       :onChange (fn [_ x]
                   (.setAttribute
                    (.getElementById js/document "reporter")
