@@ -123,11 +123,19 @@
              {:header "Database error occurred."
               :troubleshoot "Contact System Administrator."})))))))
 
+(defn extra-info
+  [{:keys [name] :as schedule}]
+  (assoc
+   schedule
+   :status (sched/status schedule)
+   :next-run (sched/next-run name)))
+
 (defn schedule [name]
   (try
-    (let [schedule (db/get-schedule name)]
+    (if-let [schedule (db/get-schedule name)]
       (response/ok
-       (assoc schedule :status (sched/status schedule))))
+       (extra-info schedule))
+      (response/not-found))
     (catch Exception e
       (response/internal-server-error))))
 
@@ -136,9 +144,7 @@
     (schedule (:name params))
     (try
       (response/ok
-       (map
-        #(assoc % :status (sched/status %))
-        (db/get-schedules)))
+       (map extra-info (db/get-schedules)))
       (catch Exception e
         (response/internal-server-error)))))
 

@@ -72,13 +72,16 @@
          new %)
       schedules))))
 
-(defn schedule-error [name]
-  (merge-schedule name {:status :server-error}))
+(defn schedule-error [name status]
+  (merge-schedule name
+                  {:status (if (= status 404)
+                             :not-found
+                             :server-error)}))
 
 (defn request-schedule [name]
   (GET (str "/schedules?name=" name)
        {:handler #(replace-schedule (assoc % :name name))
-        :error-handler #(schedule-error name)}))
+        :error-handler #(schedule-error name (:status %))}))
 
 (defn refresh-handler [{:keys [element] :as msg}]
   (case element
@@ -98,7 +101,7 @@
 
 (defn error-handler [{:keys [element] :as msg}]
   (case element
-    :schedule (schedule-error (:name msg))
+    :schedule (schedule-error (:name msg) 500)
     (.debug js/console "Unknown error element: " element)))
 
 (defn notification-handler [{:keys [cmd] :as msg}]

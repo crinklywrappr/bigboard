@@ -63,6 +63,16 @@
           :stale
           type)))))
 
+(defn next-run [name]
+  (-> (go/get-sched-map)
+      (get name)
+      :next-run
+      .getMillis
+      Date.
+      .getTime
+      Timestamp.
+      .toLocalDateTime))
+
 (defn delete-old-story [prefix]
   (io/delete-file (story-path prefix) :story)
   (io/delete-file (story-path prefix "prob") :prob)

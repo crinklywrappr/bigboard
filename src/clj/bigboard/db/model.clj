@@ -31,10 +31,11 @@
 
 (defn stream->text
   [ntext]
-  (let [r (.getCharacterStream ntext)]
-    (-> "line.separator"
-        System/getProperty
-        (s/join (line-seq r)))))
+  (when (some? ntext)
+    (let [r (.getCharacterStream ntext)]
+      (-> "line.separator"
+          System/getProperty
+          (s/join (line-seq r))))))
 
 (defn get-schedules []
   (map
@@ -65,10 +66,10 @@
     :code (- exit-code 128)}))
 
 (defn get-schedule [name]
-  (->
-   (db/query-embedded
-    :get-schedule
-    {:name name})
-   (update :long-desc stream->text)
-   (update :trouble stream->text)
-   (update :exit-code fix-exit-code)))
+  (when-let [x (db/query-embedded
+                :get-schedule
+                {:name name})]
+    (-> x
+        (update :long-desc stream->text)
+        (update :trouble stream->text)
+        (update :exit-code fix-exit-code))))

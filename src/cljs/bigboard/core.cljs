@@ -252,6 +252,11 @@
          {:active true
           :style {:backgroundColor "rgba(183, 28, 28, 0.85)"}}
          "Server Error"]
+        (= status :not-found)
+        [:> dimmer
+         {:active true
+          :style {:backgroundColor "rgba(183, 28, 28, 0.85)"}}
+         "Not Found"]
         :else [:> dimmer {:active false}])
       (when (some (partial = status) [:mia :bad :no-story])
         [:> icon {:style {:float "right"}
