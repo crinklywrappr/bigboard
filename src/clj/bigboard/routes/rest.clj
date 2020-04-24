@@ -42,13 +42,11 @@
 
 (defn simulate [{:keys [params]}]
   (try
-    (let [format (f/formatters :mysql)]
-      (response/ok
-       {:from (f/unparse format (t/now))
-        :sims (map
-               #(f/unparse format %)
-               (-> params :cron go/cron
-                   (go/simulate 5)))}))
+    (response/ok
+     {:from (sched/now)
+      :sims (map sched/to-local-datetime
+                 (-> params :cron go/cron
+                     (go/simulate 7)))})
     (catch Exception e
       (response/service-unavailable
        (.getMessage e)))))
@@ -123,18 +121,11 @@
              {:header "Database error occurred."
               :troubleshoot "Contact System Administrator."})))))))
 
-(defn extra-info
-  [{:keys [name] :as schedule}]
-  (assoc
-   schedule
-   :status (sched/status schedule)
-   :next-run (sched/next-run name)))
-
 (defn schedule [name]
   (try
     (if-let [schedule (db/get-schedule name)]
       (response/ok
-       (extra-info schedule))
+       (sched/extra-info schedule))
       (response/not-found))
     (catch Exception e
       (response/internal-server-error))))
@@ -144,7 +135,7 @@
     (schedule (:name params))
     (try
       (response/ok
-       (map extra-info (db/get-schedules)))
+       (map sched/extra-info (db/get-schedules)))
       (catch Exception e
         (response/internal-server-error)))))
 
@@ -152,6 +143,7 @@
   (try
     (do
       (db/unschedule name)
+      (sched/unschedule name)
       (response/ok))
     (catch Exception e
       (response/internal-server-error))))

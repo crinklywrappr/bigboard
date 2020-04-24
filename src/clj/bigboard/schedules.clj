@@ -5,7 +5,8 @@
             [gooff.core :as go]
             [mount.core :refer [defstate]]
             [clojure.java.io :as io]
-            [clojure.java.shell :refer [sh]])
+            [clojure.java.shell :refer [sh]]
+            [clj-time.core :as t])
   (:import [java.sql Timestamp]
            [java.io File]
            [java.util Date]))
@@ -63,15 +64,35 @@
           :stale
           type)))))
 
-(defn next-run [name]
-  (-> (go/get-sched-map)
-      (get name)
-      :next-run
+;; gooff uses joda-time and you'll notice the -X
+;; at the end of each date-time which indicates
+;; the timezone.  However, dmitri has provided
+;; transit support for java.time.LocalDateTime,
+;; so any time being communicated to the server
+;; uses that class.
+(defn to-local-datetime [dt]
+  (-> dt
       .getMillis
       Date.
       .getTime
       Timestamp.
       .toLocalDateTime))
+
+;; next-run does not update until after a process
+;; is finished, so simply looking up :next-run in
+;; the sched-map is not always what we are looking for
+(defn next-run [name]
+  (let [next (-> (go/get-sched-map)
+                 (get name)
+                 :next-run)]
+    (if (t/before? (t/now) next)
+      (to-local-datetime next)
+      (to-local-datetime
+       (first
+        (go/simulate
+         (-> (go/get-sched-map)
+             (get name)
+             :rules) 1))))))
 
 (defn delete-old-story [prefix]
   (io/delete-file (story-path prefix) :story)
@@ -88,6 +109,13 @@
    (Timestamp.
     (.getTime
      (Date.)))))
+
+(defn extra-info
+  [{:keys [name] :as schedule}]
+  (assoc
+   schedule
+   :status (status schedule)
+   :next-run (next-run name)))
 
 (defn run-schedule
   "Returns a function which executes the schedule in this order:
@@ -109,6 +137,7 @@
          :element :schedule
          :name name
          :delta {:last-triggered (now) ;; approx.
+                 :next-run (next-run name)
                  :status :running}}))
       (delete-old-story story)
       (let [rp (reporter-path reporter)]
@@ -124,8 +153,7 @@
         {:cmd :replace
          :element :schedule
          :name name
-         :new (let [sched (db/get-schedule name)]
-                (assoc sched :status (status sched)))}))
+         :new (extra-info (db/get-schedule name))}))
       (catch Exception e
         (notify-clients!
          (ws/edn->transit
@@ -146,6 +174,10 @@
   (go/update-fn name (run-schedule schedule))
   (go/update-rules name (go/cron cron))
   (go/restart name))
+
+(defn unschedule [name]
+  (go/stop name)
+  (go/remove-schedule name))
 
 (defstate schedules
   :start (doseq [sched (db/get-schedules)]

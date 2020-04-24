@@ -47,8 +47,17 @@
 (def cron-err (r/atom nil))
 (def cron-sim (r/atom nil))
 
-(defn from [format from to]
-  (.from (js/moment to format) from format))
+(defn to-phrase [from to]
+  (.to from to))
+
+(defn from-phrase [from to]
+  (.from from to))
+
+(defn format [dt]
+  (.format dt "MM/DD/YY h:mm"))
+
+(defn localdt->moment [dt]
+  (-> dt .-rep (js/moment "YYYY-MM-DDThh:mm:ss.SSS")))
 
 (defn cron-help []
   (let [list (component "List")
@@ -123,14 +132,27 @@
           [:> item-header "0 12 * * MON-FRI"]
           "Weekdays at noon"]]]]]]))
 
-(defn simulate [s]
-  (GET (str "/simulate?cron=" s)
-       {:handler #(do
-                    (reset! cron-sim %)
-                    (reset! cron-err nil))
-        :error-handler #(do
-                          (reset! cron-sim nil)
-                          (reset! cron-err (:response %)))}))
+(defn simulate
+  ([s]
+   (GET (str "/simulate?cron=" s)
+        {:handler #(do
+                     (reset! cron-sim %)
+                     (reset! cron-err nil))
+         :error-handler #(do
+                           (reset! cron-sim nil)
+                           (reset! cron-err (:response %)))}))
+  ([]
+   (let [list (component "List")
+         item (component "List" "Item")]
+     [:> list {:style {:color "gray" :font-style "italic"}}
+      (doall
+       (let [from (localdt->moment
+                   (:from @cron-sim))]
+         (for [to (:sims @cron-sim)
+               :let [to (localdt->moment to)]]
+           ^{:key (format to)}
+           [:> item
+            (str (to-phrase from to) " @ " (format to))])))])))
 
 (defn cron [curr-cron]
   (let [input (component "Form" "Input")
@@ -222,13 +244,8 @@
                       :defaultValue (:trouble schedule)}]
         [reporters (:reporter schedule)]
         [cron (:cron schedule)]
-        [:> list {:style {:color "gray" :font-style "italic"}}
-         (doall
-          (for [to (:sims @cron-sim)]
-            ^{:key to}
-            [:> item
-             (from "YYYY-MM-DD hh:mm:ss"
-                   (:from @cron-sim) to)]))]
+        (when (seq @cron-sim)
+          [simulate])
         (when (some? @schedule-err)
           [:> message {:negative true}
            [:> header (:header @schedule-err)]
