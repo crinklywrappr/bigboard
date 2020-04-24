@@ -24,6 +24,13 @@
   (-> cfg/env :bigboard :reporters
       (str File/separator file)))
 
+(defn cron? [s]
+  (try
+    (go/cron s)
+    [true ""]
+    (catch Exception e
+      [false (.getMessage e)])))
+
 (defn status
   "Looks for a .prob file *first*"
   [{:keys [last-triggered last-finished] :as sched}]
@@ -119,10 +126,3 @@
   :stop (do
           (go/stop)
           (go/clear-schedule)))
-
-(defn cron? [s]
-  (try
-    (go/cron s)
-    [true ""]
-    (catch Exception e
-      [false (.getMessage e)])))

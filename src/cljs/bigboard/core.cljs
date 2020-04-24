@@ -89,6 +89,79 @@
 (defn from [format from to]
   (.from (js/moment to format) from format))
 
+(defn cron-help []
+  (let [list (component "List")
+        item (component "List" "Item")
+        item-header (component "List" "Header")
+        segment (component "Segment")
+        grid (component "Grid")
+        row (component "Grid" "Row")
+        column (component "Grid" "Column")
+        divider (component "Divider")
+        header (component "Header")]
+    [:> segment {:basic true}
+     [:> grid
+      {:divided true
+       :relaxed true}
+      [:> row {:columns 3}
+       [:> column {:textAlign "center"}
+        [:> header {:as "h4"} "Fields (in order)"]
+        [:> list {:size "small" :style {:color "gray" :font-style "italic"}}
+         [:> item
+          [:> item-header "Minute"]
+          "Range: 0-59"]
+         [:> item
+          [:> item-header "Hour"]
+          "Range: 0-23"]
+         [:> item
+          [:> item-header "Day of month"]
+          "Range: 1-31"]
+         [:> item
+          [:> item-header "Month"]
+          "Range: 1-12"]
+         [:> item
+          [:> item-header "Day of week"]
+          "Range: 1-7 or SUN-SAT"]]]
+       [:> column {:textAlign "center"}
+        [:> header {:as "h4"} "Field types"]
+        [:> list {:size "small" :style {:color "gray" :font-style "italic"}}
+         [:> item
+          [:> item-header "Exact matches"]
+          "3"]
+         [:> item
+          [:> item-header "Alternation"]
+          "3,10,7"]
+         [:> item
+          [:> item-header "Ranges"]
+          "1-5"]
+         [:> item
+          [:> item-header "Repetition"]
+          "/5"]
+         [:> item
+          [:> item-header "Shifted Repetition"]
+          "2/5 or -2/5"]
+         [:> item
+          [:> item-header "Star"]
+          "*"]]]
+       [:> column {:textAlign "center"}
+        [:> header {:as "h4"} "Examples"]
+        [:> list {:size "small" :style {:color "gray" :font-style "italic"}}
+         [:> item
+          [:> item-header "0 0 * * *"]
+          "12am each day"]
+         [:> item
+          [:> item-header "30 0 * * *"]
+          "12:30am each day"]
+         [:> item
+          [:> item-header "/5 * * * *"]
+          "Every 5 minutes"]
+         [:> item
+          [:> item-header "0 0,12 * * SAT,SUN"]
+          "Twice a day on weekends"]
+         [:> item
+          [:> item-header "0 12 * * MON-FRI"]
+          "Weekdays at noon"]]]]]]))
+
 (defn cron
   ([x]
    (GET (str "/simulate?cron=" x)
@@ -100,21 +173,32 @@
                            (reset! cron-err (:response %)))}))
   ([]
    (let [input (component "Form" "Input")
-         button (component "Button")]
-     [:> input
-      {:id "cron"
-       :label "Cron"
-       :placeholder "* * * * *"
-       :maxLength 256
-       :error @cron-err
-       :required true
-       :action (r/as-element
-                [:> button
-                 {:onClick #(cron
-                             (-> js/document
-                                 (.getElementById "cron")
-                                 .-value))}
-                 "Simulate"])}])))
+         button (component "Button")
+         popup (component "Popup")
+         content (component "Popup" "Content")]
+     [:> popup
+      {:wide "very"
+       :flowing true
+       :hoverable true
+       :trigger
+       (r/as-element
+        [:> input
+         {:id "cron"
+          :label "Cron"
+          :placeholder "* * * * *"
+          :maxLength 256
+          :error @cron-err
+          :required true
+          :action (r/as-element
+                   [:> button
+                    {:onClick
+                     #(cron
+                       (-> js/document
+                           (.getElementById "cron")
+                           .-value))}
+                    "Simulate"])}])}
+      [:> content
+       [cron-help]]])))
 
 (def name-err (r/atom nil))
 (def story-err (r/atom nil))
@@ -133,14 +217,7 @@
         item (component "List" "Item")
         button (component "Button")
         message (component "Message")
-        header (component "Message" "Header")
-        _ (reset! cron-sim nil)
-        _ (reset! cron-err nil)
-        _ (reset! name-err nil)
-        _ (reset! story-err nil)
-        _ (reset! contact-err nil)
-        _ (reset! short-desc-err nil)
-        _ (reset! db/reporters-err nil)]
+        header (component "Message" "Header")]
     (fn []
       [:> form
        [:> input {:label "Name (28 chars)"
@@ -174,13 +251,6 @@
                      :placeholder "What steps should be taken to resolve this issue, if reported?"
                      :id "trouble"}]
        [reporters]
-       [:> list {:size "small" :style {:color "gray" :font-style "italic"}}
-        [:> item "minute (0-59)"]
-        [:> item "hour (0-23)"]
-        [:> item "day of month (1-31)"]
-        [:> item "month (1-12)"]
-        [:> item "day of week (1-7)"]
-        [:> item "exact matches, alternation, ranges, repetition, shifted repetition, and * accepted"]]
        [cron]
        [:> list {:style {:color "gray" :font-style "italic"}}
         (doall
@@ -219,6 +289,17 @@
 
 (def new-modal? (r/atom false))
 
+(defn close-modal [& args]
+  (reset! add-schedule-err nil)
+  (reset! new-modal? false)
+  (reset! cron-sim nil)
+  (reset! cron-err nil)
+  (reset! name-err nil)
+  (reset! story-err nil)
+  (reset! contact-err nil)
+  (reset! short-desc-err nil)
+  (reset! db/reporters-err nil))
+
 (defn build-schedule-from-input []
   (let [val (fn [node] (or (.-value node) (.getAttribute node "value")))
         req (array-seq (.querySelectorAll js/document "[required]"))
@@ -244,9 +325,7 @@
           (when (validate speculative-schedule)
             (db/add-schedule
              speculative-schedule
-             {:handler
-              #(do (reset! add-schedule-err nil)
-                   (reset! new-modal? false))
+             {:handler close-modal
               :error-handler
               (fn [resp]
                 (if (== (:status resp) 500)
@@ -272,7 +351,7 @@
                  "Schedule"])
       :size "tiny"
       :open @new-modal?
-      :onClose #(reset! new-modal? false)}
+      :onClose close-modal}
      [:> header
       {:icon "plus"
        :content "New Schedule"}]
