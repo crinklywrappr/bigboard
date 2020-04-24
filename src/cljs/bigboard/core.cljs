@@ -1,6 +1,7 @@
 (ns bigboard.core
   (:require
-   [cljsjs.semantic-ui-react]
+   [bigboard.sui :refer [component]]
+   [bigboard.sched-form :as sf]
    [goog.object]
    [reagent.core :as r]
    [reagent.dom :as rdom]
@@ -20,17 +21,6 @@
   (r/atom
    {:page :home}))
 
-(def semantic-ui js/semanticUIReact)
-
-(defn component
-  "Get a component from sematic-ui-react:
-    (component \"Button\")
-    (component \"Menu\" \"Item\")"
-  [k & ks]
-  (if (seq ks)
-    (apply goog.object/getValueByKeys semantic-ui k ks)
-    (goog.object/get semantic-ui k)))
-
 (defn nav-link [uri title page]
   (let [item (component "Menu" "Item")]
     [:> item
@@ -46,294 +36,46 @@
       [:a.item.header {:href "/"} "bigboard"]
       [nav-link "/" "home" :home]]]))
 
-(db/request-reporters)
-
-(defn reporters []
-  (let [select (component "Form" "Select")
-        group (component "Form" "Group")
-        button (component "Form" "Button")]
-    [:div
-     ;; Using label correctly screws up
-     ;; the refresh button alignment.
-     [:label
-      {:for "reporters"
-       :style
-       {:fontSize "13px"
-        :fontWeight 700
-        :lineHeight "18.2px"
-        :marginButton "4px"
-        :color "rgba(0,0,0,0.87)"}}
-      "Reporters"]
-     [:> group
-      [:> select
-       {:fluid true
-        :error @db/reporters-err
-        ;; :label {:children "Reporter"
-        ;;         :htmlFor "reporter"}
-        :options @db/reporters
-        :placeholder "Choose Reporter"
-        :required true
-        :search true
-        :searchInput {:id "reporter"}
-        :onChange (fn [_ x]
-                    (.setAttribute
-                     (.getElementById js/document "reporter")
-                     "value" (.-value x)))}]
-      [:> button
-       {:icon "refresh"
-        :onClick #(db/request-reporters)}]]]))
-
-(def cron-err (r/atom nil))
-(def cron-sim (r/atom nil))
-
-(defn from [format from to]
-  (.from (js/moment to format) from format))
-
-(defn cron-help []
-  (let [list (component "List")
-        item (component "List" "Item")
-        item-header (component "List" "Header")
-        segment (component "Segment")
-        grid (component "Grid")
-        row (component "Grid" "Row")
-        column (component "Grid" "Column")
-        divider (component "Divider")
-        header (component "Header")]
-    [:> segment {:basic true}
-     [:> grid
-      {:divided true
-       :relaxed true}
-      [:> row {:columns 3}
-       [:> column {:textAlign "center"}
-        [:> header {:as "h4"} "Fields (in order)"]
-        [:> list {:size "small" :style {:color "gray" :font-style "italic"}}
-         [:> item
-          [:> item-header "Minute"]
-          "Range: 0-59"]
-         [:> item
-          [:> item-header "Hour"]
-          "Range: 0-23"]
-         [:> item
-          [:> item-header "Day of month"]
-          "Range: 1-31"]
-         [:> item
-          [:> item-header "Month"]
-          "Range: 1-12"]
-         [:> item
-          [:> item-header "Day of week"]
-          "Range: 1-7 or SUN-SAT"]]]
-       [:> column {:textAlign "center"}
-        [:> header {:as "h4"} "Field types"]
-        [:> list {:size "small" :style {:color "gray" :font-style "italic"}}
-         [:> item
-          [:> item-header "Exact matches"]
-          "3"]
-         [:> item
-          [:> item-header "Alternation"]
-          "3,10,7"]
-         [:> item
-          [:> item-header "Ranges"]
-          "1-5"]
-         [:> item
-          [:> item-header "Repetition"]
-          "/5"]
-         [:> item
-          [:> item-header "Shifted Repetition"]
-          "2/5 or -2/5"]
-         [:> item
-          [:> item-header "Star"]
-          "*"]]]
-       [:> column {:textAlign "center"}
-        [:> header {:as "h4"} "Examples"]
-        [:> list {:size "small" :style {:color "gray" :font-style "italic"}}
-         [:> item
-          [:> item-header "0 0 * * *"]
-          "12am each day"]
-         [:> item
-          [:> item-header "30 0 * * *"]
-          "12:30am each day"]
-         [:> item
-          [:> item-header "/5 * * * *"]
-          "Every 5 minutes"]
-         [:> item
-          [:> item-header "0 0,12 * * SAT,SUN"]
-          "Twice a day on weekends"]
-         [:> item
-          [:> item-header "0 12 * * MON-FRI"]
-          "Weekdays at noon"]]]]]]))
-
-(defn cron
-  ([x]
-   (GET (str "/simulate?cron=" x)
-        {:handler #(do
-                     (reset! cron-sim %)
-                     (reset! cron-err nil))
-         :error-handler #(do
-                           (reset! cron-sim nil)
-                           (reset! cron-err (:response %)))}))
-  ([]
-   (let [input (component "Form" "Input")
-         button (component "Button")
-         popup (component "Popup")
-         content (component "Popup" "Content")]
-     [:> popup
-      {:wide "very"
-       :flowing true
-       :hoverable true
-       :trigger
-       (r/as-element
-        [:> input
-         {:id "cron"
-          :label "Cron"
-          :placeholder "* * * * *"
-          :maxLength 256
-          :error @cron-err
-          :required true
-          :action (r/as-element
-                   [:> button
-                    {:onClick
-                     #(cron
-                       (-> js/document
-                           (.getElementById "cron")
-                           .-value))}
-                    "Simulate"])}])}
-      [:> content
-       [cron-help]]])))
-
-(def name-err (r/atom nil))
-(def story-err (r/atom nil))
-(def contact-err (r/atom nil))
-(def short-desc-err (r/atom nil))
-
-;; expects a map with header and troubleshoot keys
-(def add-schedule-err
-  (r/atom nil))
-
-(defn new-form []
-  (let [form (component "Form")
-        input (component "Form" "Input")
-        textarea (component "Form" "TextArea")
-        list (component "List")
-        item (component "List" "Item")
-        button (component "Button")
-        message (component "Message")
-        header (component "Message" "Header")]
-    (fn []
-      [:> form
-       [:> input {:label "Name (28 chars)"
-                  :placeholder "Name"
-                  :maxLength 28
-                  :required true
-                  :id "name"
-                  :error @name-err}]
-       [:> input {:label "Story"
-                  :placeholder "Filename which the reporter will produce, sans path"
-                  :maxLength 255
-                  :required true
-                  :id "story"
-                  :error @story-err}]
-       [:> input {:label "Contact"
-                  :placeholder "Who to contact if something goes wrong"
-                  :maxLength 50
-                  :required true
-                  :id "contact"
-                  :error @contact-err}]
-       [:> textarea {:label "Short description (140 chars)"
-                     :placeholder "Description which will appear on the front page"
-                     :maxLength 140
-                     :required true
-                     :id "short-desc"
-                     :error @short-desc-err}]
-       [:> textarea {:label "Long description"
-                     :placeholder "More details which will go on the detail page"
-                     :id "long-desc"}]
-       [:> textarea {:label "Troubleshooting"
-                     :placeholder "What steps should be taken to resolve this issue, if reported?"
-                     :id "trouble"}]
-       [reporters]
-       [cron]
-       [:> list {:style {:color "gray" :font-style "italic"}}
-        (doall
-         (for [to (:sims @cron-sim)]
-           ^{:key to}
-           [:> item
-            (from "YYYY-MM-DD hh:mm:ss"
-                  (:from @cron-sim) to)]))]
-       (when (some? @add-schedule-err)
-         [:> message {:negative true}
-          [:> header (:header @add-schedule-err)]
-          [:p (:troubleshoot @add-schedule-err)]])])))
-
-(defn validate [{:keys [name story contact short-desc reporter cron]}]
-  (if (= name "")
-    (reset! name-err "This field is required")
-    (reset! name-err nil))
-  (if (= story "")
-    (reset! story-err "This field is required")
-    (reset! story-err nil))
-  (if (= contact "")
-    (reset! contact-err "This field is required")
-    (reset! contact-err nil))
-  (if (= short-desc "")
-    (reset! short-desc-err "This field is required")
-    (reset! short-desc-err nil))
-  (if (nil? reporter)
-    (reset! db/reporters-err "This field is required")
-    (reset! db/reporters-err nil))
-  (if (= cron "")
-    (reset! cron-err "This field is required")
-    (reset! cron-err nil))
-  (if (or (= name "") (= story "") (= contact "")
-          (= short-desc "") (nil? reporter) (= cron ""))
-    false true))
+;; --- begin: new modal ---
 
 (def new-modal? (r/atom false))
 
-(defn close-modal [& args]
-  (reset! add-schedule-err nil)
+(defn close-new-modal [& args]
+  (reset! sf/schedule-err nil)
   (reset! new-modal? false)
-  (reset! cron-sim nil)
-  (reset! cron-err nil)
-  (reset! name-err nil)
-  (reset! story-err nil)
-  (reset! contact-err nil)
-  (reset! short-desc-err nil)
+  (reset! sf/cron-sim nil)
+  (reset! sf/cron-err nil)
+  (reset! sf/name-err nil)
+  (reset! sf/story-err nil)
+  (reset! sf/contact-err nil)
+  (reset! sf/short-desc-err nil)
   (reset! db/reporters-err nil))
 
-(defn build-schedule-from-input []
-  (let [val (fn [node] (or (.-value node) (.getAttribute node "value")))
-        req (array-seq (.querySelectorAll js/document "[required]"))
-        input (zipmap
-               (map (comp keyword #(.-id %)) req)
-               (map val req))]
-    (assoc
-     input
-     :trouble (.-value
-               (.getElementById
-                js/document "trouble"))
-     :long-desc (.-value
-                 (.getElementById
-                  js/document "long-desc")))))
+(defn add-schedule [new-schedule]
+  (POST "/schedules"
+        {:params new-schedule
+         :handler
+         #(do
+            (ws/send-transit-msg! {:cmd :refresh :element :schedules})
+            (close-new-modal))
+         :error-handler
+         (fn [resp]
+           (if (== (:status resp) 500)
+             (reset! sf/schedule-err (:response resp))
+             (case (-> resp :response :reason)
+               :cron (reset! sf/cron-err (-> resp :response :msg))
+               :name (reset! sf/name-err (-> resp :response :msg))
+               :story (reset! sf/story-err (-> resp :response :msg)))))}))
 
-(defn submit-button []
+(defn add-button []
   (let [button (component "Button")]
     [:> button
      {:primary true
       :onClick
       (fn [& args]
-        (let [speculative-schedule (build-schedule-from-input)]
-          (when (validate speculative-schedule)
-            (db/add-schedule
-             speculative-schedule
-             {:handler close-modal
-              :error-handler
-              (fn [resp]
-                (if (== (:status resp) 500)
-                  (reset! add-schedule-err (:response resp))
-                  (case (-> resp :response :reason)
-                    :cron (reset! cron-err (-> resp :response :msg))
-                    :name (reset! name-err (-> resp :response :msg))
-                    :story (reset! story-err (-> resp :response :msg)))))}))))}
+        (let [speculative-schedule (sf/build-schedule-from-input)]
+          (when (sf/validate speculative-schedule)
+            (add-schedule speculative-schedule))))}
      "Add"]))
 
 (defn new-modal []
@@ -351,14 +93,71 @@
                  "Schedule"])
       :size "tiny"
       :open @new-modal?
-      :onClose close-modal}
+      :onClose close-new-modal}
      [:> header
       {:icon "plus"
        :content "New Schedule"}]
      [:> content
-      [new-form]]
+      [sf/sched-form]]
      [:> actions
-      [submit-button]]]))
+      [add-button]]]))
+
+;; --- end: new modal ---
+
+;; --- begin: update modal ---
+
+(def update-modal? (r/atom false))
+
+(defn close-update-modal [& args]
+  (reset! sf/schedule-err nil)
+  (reset! update-modal? false)
+  (reset! sf/cron-sim nil)
+  (reset! sf/cron-err nil)
+  (reset! sf/name-err nil)
+  (reset! sf/story-err nil)
+  (reset! sf/contact-err nil)
+  (reset! sf/short-desc-err nil)
+  (reset! db/reporters-err nil))
+
+(defn update-schedule [schedule])
+
+(defn update-button []
+  (let [button (component "Button")]
+    [:> button
+     {:primary true
+      :onClick
+      (fn [& args]
+        (let [speculative-schedule (sf/build-schedule-from-input)]
+          (when (sf/validate speculative-schedule)
+            (update-schedule speculative-schedule))))}
+     "Update"]))
+
+(defn update-modal [schedule]
+  (let [button (component "Button")
+        icon (component "Icon")
+        modal (component "Modal")
+        header (component "Header")
+        content (component "Modal" "Content")
+        actions (component "Modal" "Actions")]
+    [:> modal
+     {:trigger (r/as-element
+                [:> button
+                 {:basic true
+                  :color "yellow"
+                  :icon "edit"
+                  :onClick #(reset! update-modal? true)}])
+      :size "tiny"
+      :open @update-modal?
+      :onClose close-update-modal}
+     [:> header
+      {:icon "edit"
+       :content "Update"}]
+     [:> content
+      [sf/sched-form schedule]]
+     [:> actions
+      [update-button]]]))
+
+;; --- end: update modal
 
 (defn delete-modal [name status]
   (let [group (component "Button" "Group")
@@ -447,7 +246,7 @@
      [:> content {:extra true}
       [:> button-group {:class ["four"]}
        [delete-modal name status]
-       [:> button {:basic true :color "yellow" :icon "edit"}]
+       [update-modal sched]
        [:> button
         {:basic true
          :disabled (some (partial = status) [:mia :bad :running])

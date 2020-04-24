@@ -12,18 +12,6 @@
 (def schedules-err (r/atom nil))
 (def schedules (r/atom nil))
 
-(defn add-schedule [new-schedule handlers]
-  (POST "/schedules"
-        {:params new-schedule
-         :handler
-         #(do
-            (ws/send-transit-msg! {:cmd :refresh :element :schedules})
-            (when (fn? (:handler handlers))
-              ((:handler handlers) %)))
-         :error-handler
-         #(when (fn? (:error-handler handlers))
-            ((:error-handler handlers) %))}))
-
 (defn delete-schedule [name]
   (DELETE
    "/schedules"
