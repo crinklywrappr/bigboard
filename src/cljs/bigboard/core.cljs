@@ -9,7 +9,7 @@
    [goog.history.EventType :as HistoryEventType]
    [markdown.core :refer [md->html]]
    [bigboard.ajax :as ajax]
-   [ajax.core :refer [GET POST DELETE]]
+   [ajax.core :refer [GET POST DELETE PUT]]
    [reitit.core :as reitit]
    [clojure.string :as string]
    [cljsjs.moment]
@@ -119,7 +119,20 @@
   (reset! sf/short-desc-err nil)
   (reset! db/reporters-err nil))
 
-(defn update-schedule [schedule])
+(defn update-schedule [schedule]
+  (PUT "/schedules"
+       {:params schedule
+        :handler
+        #(do
+           (ws/send-transit-msg! {:cmd :refresh :element :schedules})
+           (close-update-modal))
+        :error-handler
+        (fn [resp]
+          (if (== (:status resp) 500)
+            (reset! sf/schedule-err (:response resp))
+            (case (-> resp :response :reason)
+              :cron (reset! sf/cron-err (-> resp :response :msg))
+              :story (reset! sf/story-err (-> resp :response :msg)))))}))
 
 (defn update-button []
   (let [button (component "Button")]

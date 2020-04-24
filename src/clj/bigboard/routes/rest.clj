@@ -62,11 +62,12 @@
    (.getMessage (.getCause exception))
    "UNIQUE_STORIES"))
 
-;; TODO: Add filename extension verification
-(defn add-schedule [{:keys [name story contact
-                            short-desc long-desc
-                            trouble reporter cron]
-                     :as params}]
+;; TODO: Add story filename extension verification
+(defn add-schedule
+  [{:keys [name story contact
+           short-desc long-desc
+           trouble reporter cron]
+    :as params}]
   (let [[v e] (sched/cron? cron)]
     (if v
       (try
@@ -82,6 +83,30 @@
                {:reason :story :msg "Story already exists"})
               (response/bad-request
                {:reason :name :msg "Name already exists"}))
+            (response/internal-server-error
+             {:header "Database error occurred."
+              :troubleshoot "Contact System Administrator."}))))
+      (response/bad-request
+       {:reason :cron :msg e}))))
+
+(defn update-schedule
+  [{:keys [name story contact
+           short-desc long-desc
+           trouble reporter cron]
+    :as params}]
+  (let [[v e] (sched/cron? cron)]
+    (if v
+      (try
+        (db/update-schedule!
+         name story contact
+         short-desc long-desc
+         trouble reporter cron)
+        (response/ok)
+        (catch Exception e
+          (if (and (constraint-violation? e)
+                   (duplicate-story? e))
+            (response/bad-request
+             {:reason :story :msg "Story already exists"})
             (response/internal-server-error
              {:header "Database error occurred."
               :troubleshoot "Contact System Administrator."}))))
@@ -132,6 +157,7 @@
    ["/reporters" {:get reporters}]
    ["/simulate" {:get simulate}]
    ["/schedules" {:post #(add-schedule (:params %))
+                  :put #(update-schedule (:params %))
                   :get schedules
                   :delete #(del-schedule (:params %))}]
    ["/trigger" {:post #(trigger (-> % :params :name))}]])

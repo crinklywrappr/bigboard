@@ -3,11 +3,22 @@
    [bigboard.db.core :as db]
    [clojure.string :as s]))
 
-(defn add-schedule! [name story contact
-                     short-desc long-desc
-                     trouble reporter cron]
+(defn add-schedule!
+  [name story contact
+   short-desc long-desc
+   trouble reporter cron]
   (db/query-embedded
    :add-schedule
+   {:name name :story story :contact contact
+    :short-desc short-desc :long-desc long-desc
+    :trouble trouble :reporter reporter :cron cron}))
+
+(defn update-schedule!
+  [name story contact
+   short-desc long-desc
+   trouble reporter cron]
+  (db/query-embedded
+   :update-schedule
    {:name name :story story :contact contact
     :short-desc short-desc :long-desc long-desc
     :trouble trouble :reporter reporter :cron cron}))

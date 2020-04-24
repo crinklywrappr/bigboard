@@ -5,43 +5,44 @@
    [reagent.core :as r]
    [ajax.core :refer [GET POST DELETE]]))
 
+(def reporter (r/atom nil))
+
+;; The reporters element is a bit complex
 (defn reporters [curr-reporter]
   (let [select (component "Form" "Select")
         group (component "Form" "Group")
         button (component "Form" "Button")
         _ (db/request-reporters)]
     (fn []
-      [:div
-       ;; Using label correctly screws up
-       ;; the refresh button alignment.
-       [:label
-        {:for "reporters"
-         :style
-         {:fontSize "13px"
-          :fontWeight 700
-          :lineHeight "18.2px"
-          :marginButton "4px"
-          :color "rgba(0,0,0,0.87)"}}
-        "Reporters"]
-       [:> group
-        [:> select
-         {:fluid true
-          :error @db/reporters-err
-          ;; :label {:children "Reporter"
-          ;;         :htmlFor "reporter"}
-          :options @db/reporters
-          :placeholder "Choose Reporter"
-          :required true
-          :search true
-          :searchInput {:id "reporter"}
-          :defaultValue curr-reporter
-          :onChange (fn [_ x]
-                      (.setAttribute
-                       (.getElementById js/document "reporter")
-                       "value" (.-value x)))}]
-        [:> button
-         {:icon "refresh"
-          :onClick #(db/request-reporters)}]]])))
+      (let [_ (reset! reporter curr-reporter)]
+        [:div
+         ;; Using label correctly screws up
+         ;; the refresh button alignment.
+         [:label
+          {:for "reporters"
+           :style
+           {:fontSize "13px"
+            :fontWeight 700
+            :lineHeight "18.2px"
+            :marginButton "4px"
+            :color "rgba(0,0,0,0.87)"}}
+          "Reporters"]
+         [:> group
+          [:> select
+           {:error @db/reporters-err
+            ;; :label {:children "Reporter"
+            ;;         :htmlFor "reporter"}
+            :options @db/reporters
+            :placeholder "Choose Reporter"
+            :required true
+            :search true
+            :searchInput {:id "reporter"}
+            :id "reporter"
+            :defaultValue curr-reporter
+            :onChange (fn [_ x] (reset! reporter x))}]
+          [:> button
+           {:icon "refresh"
+            :onClick #(db/request-reporters)}]]]))))
 
 (def cron-err (r/atom nil))
 (def cron-sim (r/atom nil))
@@ -149,7 +150,7 @@
          :maxLength 256
          :error @cron-err
          :required true
-         :value curr-cron
+         :defaultValue curr-cron
          :action (r/as-element
                   [:> button
                    {:onClick
@@ -196,29 +197,29 @@
                    :required true
                    :id "story"
                    :error @story-err
-                   :value (:story schedule)}]
+                   :defaultValue (:story schedule)}]
         [:> input {:label "Contact"
                    :placeholder "Who to contact if something goes wrong"
                    :maxLength 50
                    :required true
                    :id "contact"
                    :error @contact-err
-                   :value (:contact schedule)}]
+                   :defaultValue (:contact schedule)}]
         [:> textarea {:label "Short description (140 chars)"
                       :placeholder "Description which will appear on the front page"
                       :maxLength 140
                       :required true
                       :id "short-desc"
                       :error @short-desc-err
-                      :value (:short-desc schedule)}]
+                      :defaultValue (:short-desc schedule)}]
         [:> textarea {:label "Long description"
                       :placeholder "More details which will go on the detail page"
                       :id "long-desc"
-                      :value (:long-desc schedule)}]
+                      :defaultValue (:long-desc schedule)}]
         [:> textarea {:label "Troubleshooting"
                       :placeholder "What steps should be taken to resolve this issue, if reported?"
                       :id "trouble"
-                      :value (:trouble schedule)}]
+                      :defaultValue (:trouble schedule)}]
         [reporters (:reporter schedule)]
         [cron (:cron schedule)]
         [:> list {:style {:color "gray" :font-style "italic"}}
@@ -265,6 +266,7 @@
                (map val req))]
     (assoc
      input
+     :reporter @reporter
      :trouble (.-value
                (.getElementById
                 js/document "trouble"))

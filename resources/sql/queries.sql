@@ -7,6 +7,18 @@ values (:name, :story, :contact,
         :short_desc, :long_desc,
         :trouble, :reporter, :cron);
 
+-- :name update-schedule :! :n
+-- :doc updates a schedule definition
+update schedules
+   set story = :story,
+       contact = :contact,
+       short_desc = :short_desc,
+       long_desc = :long_desc,
+       trouble = :trouble,
+       reporter = :reporter,
+       cron = :cron
+ where name = :name;
+
 -- :name get-schedules :? :*
 -- :doc returns the entire schedule
 select * from schedules;
