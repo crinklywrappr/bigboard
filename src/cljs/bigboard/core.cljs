@@ -62,10 +62,12 @@
          (fn [resp]
            (if (== (:status resp) 500)
              (reset! sf/schedule-err (:response resp))
-             (case (-> resp :response :reason)
-               :cron (reset! sf/cron-err (-> resp :response :msg))
-               :name (reset! sf/name-err (-> resp :response :msg))
-               :story (reset! sf/story-err (-> resp :response :msg)))))}))
+             (let [msg (-> resp :response :msg)]
+               (case (-> resp :response :reason)
+                 :cron (reset! sf/cron-err msg)
+                 :reporter (reset! db/reporters-err msg)
+                 :name (reset! sf/name-err msg)
+                 :story (reset! sf/story-err msg)))))}))
 
 (defn add-button []
   (let [button (component "Button")]
@@ -130,9 +132,11 @@
         (fn [resp]
           (if (== (:status resp) 500)
             (reset! sf/schedule-err (:response resp))
-            (case (-> resp :response :reason)
-              :cron (reset! sf/cron-err (-> resp :response :msg))
-              :story (reset! sf/story-err (-> resp :response :msg)))))}))
+            (let [msg (-> resp :response :msg)]
+              (case (-> resp :response :reason)
+                :cron (reset! sf/cron-err msg)
+                :reporter (reset! db/reporters-err msg)
+                :story (reset! sf/story-err msg)))))}))
 
 (defn update-button []
   (let [button (component "Button")]

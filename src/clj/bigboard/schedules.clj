@@ -31,15 +31,22 @@
     (catch Exception e
       [false (.getMessage e)])))
 
+(defn mia?
+  [reporter]
+  (not
+   (.exists
+    (io/file
+     (reporter-path
+      reporter)))))
+
 (defn status
   "Looks for a .prob file *first*"
-  [{:keys [last-triggered last-finished] :as sched}]
-  (let [reporter (io/file (reporter-path (:reporter sched)))
-        story (io/file (story-path (:story sched)))
+  [{:keys [last-triggered last-finished reporter] :as sched}]
+  (let [story (io/file (story-path (:story sched)))
         prob (io/file (story-path (:story sched) ".prob"))
         [good? _] (cron? (:cron sched))]
     (cond
-      (not (.exists reporter)) :mia
+      (mia? reporter) :mia
       (not good?) :bad
       (nil? last-triggered) :new
       (nil? last-finished) :running
@@ -116,13 +123,23 @@
            :element :schedule
            :name name}))))))
 
+(defn add-schedule [schedule]
+  (go/add-schedule
+   (:name schedule)
+   (go/cron (:cron schedule))
+   (run-schedule schedule))
+  (go/start (:name schedule)))
+
+(defn update-schedule
+  [{:keys [name story reporter cron]
+    :as schedule}]
+  (go/update-fn name (run-schedule schedule))
+  (go/update-rules name (go/cron cron))
+  (go/restart name))
+
 (defstate schedules
   :start (doseq [sched (db/get-schedules)]
-           (go/add-schedule
-            (:name sched)
-            (go/cron (:cron sched))
-            (run-schedule sched))
-           (go/start (:name sched)))
+           (add-schedule sched))
   :stop (do
           (go/stop)
           (go/clear-schedule)))

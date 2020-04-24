@@ -69,12 +69,19 @@
            trouble reporter cron]
     :as params}]
   (let [[v e] (sched/cron? cron)]
-    (if v
+    (cond
+      (not v) (response/bad-request
+               {:reason :cron :msg e})
+      (sched/mia? reporter) (response/bad-request
+                             {:reason :reporter
+                              :msg "Reporter missing"})
+      :else
       (try
         (db/add-schedule!
          name story contact
          short-desc long-desc
          trouble reporter cron)
+        (sched/add-schedule params)
         (response/ok)
         (catch Exception e
           (if (constraint-violation? e)
@@ -85,9 +92,7 @@
                {:reason :name :msg "Name already exists"}))
             (response/internal-server-error
              {:header "Database error occurred."
-              :troubleshoot "Contact System Administrator."}))))
-      (response/bad-request
-       {:reason :cron :msg e}))))
+              :troubleshoot "Contact System Administrator."})))))))
 
 (defn update-schedule
   [{:keys [name story contact
@@ -95,12 +100,19 @@
            trouble reporter cron]
     :as params}]
   (let [[v e] (sched/cron? cron)]
-    (if v
+    (cond
+      (not v) (response/bad-request
+               {:reason :cron :msg e})
+      (sched/mia? reporter) (response/bad-request
+                             {:reason :reporter
+                              :msg "Reporter missing"})
+      :else
       (try
         (db/update-schedule!
          name story contact
          short-desc long-desc
          trouble reporter cron)
+        (sched/update-schedule params)
         (response/ok)
         (catch Exception e
           (if (and (constraint-violation? e)
@@ -109,9 +121,7 @@
              {:reason :story :msg "Story already exists"})
             (response/internal-server-error
              {:header "Database error occurred."
-              :troubleshoot "Contact System Administrator."}))))
-      (response/bad-request
-       {:reason :cron :msg e}))))
+              :troubleshoot "Contact System Administrator."})))))))
 
 (defn schedule [name]
   (try
