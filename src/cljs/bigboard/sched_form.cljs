@@ -212,7 +212,7 @@
                    :id "name"
                    :error @name-err
                    :disabled (-> schedule :name some?)
-                   :value (:name schedule)}]
+                   :defaultValue (:name schedule)}]
         [:> input {:label "Story"
                    :placeholder "Filename which the reporter will produce, sans path"
                    :maxLength 255
