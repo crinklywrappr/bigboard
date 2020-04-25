@@ -13,7 +13,8 @@
    [clj-time.core :as t]
    [clojure.string :as str]))
 
-(defn reporters [request]
+(defn reporters
+  [request]
   (if (string? (-> cfg/env :bigboard :reporters))
     (let [dir (io/file (-> cfg/env :bigboard :reporters))]
       (if (.exists dir)
@@ -40,7 +41,8 @@
     (response/expectation-failed
      (str "BIGBOARD__REPORTERS missing or invalid"))))
 
-(defn simulate [{:keys [params]}]
+(defn simulate
+  [{:keys [params]}]
   (try
     (response/ok
      {:from (sched/now)
@@ -51,11 +53,13 @@
       (response/service-unavailable
        (.getMessage e)))))
 
-(defn constraint-violation? [exception]
+(defn constraint-violation?
+  [exception]
   (= (type (.getCause exception))
      org.h2.jdbc.JdbcSQLIntegrityConstraintViolationException))
 
-(defn duplicate-story? [exception]
+(defn duplicate-story?
+  [exception]
   (str/includes?
    (.getMessage (.getCause exception))
    "UNIQUE_STORIES"))
@@ -121,7 +125,8 @@
              {:header "Database error occurred."
               :troubleshoot "Contact System Administrator."})))))))
 
-(defn schedule [name]
+(defn schedule
+  [name]
   (try
     (if-let [schedule (db/get-schedule name)]
       (response/ok
@@ -130,7 +135,8 @@
     (catch Exception e
       (response/internal-server-error))))
 
-(defn schedules [{:keys [params]}]
+(defn schedules
+  [{:keys [params]}]
   (if (seq params)
     (schedule (:name params))
     (try
@@ -139,7 +145,8 @@
       (catch Exception e
         (response/internal-server-error)))))
 
-(defn del-schedule [{:keys [name] :as params}]
+(defn del-schedule
+  [{:keys [name] :as params}]
   (try
     (do
       (db/unschedule name)
@@ -148,7 +155,8 @@
     (catch Exception e
       (response/internal-server-error))))
 
-(defn trigger [name]
+(defn trigger
+  [name]
   (try
     ((sched/run-schedule
       (db/get-schedule name)))
@@ -157,7 +165,6 @@
       (response/internal-server-error
        (.getMessage e)))))
 
-;; actual scheduling is next
 (defn rest-routes []
   [""
    {:middleware [middleware/wrap-csrf
@@ -168,4 +175,5 @@
                   :put #(update-schedule (:params %))
                   :get schedules
                   :delete #(del-schedule (:params %))}]
-   ["/trigger" {:post #(trigger (-> % :params :name))}]])
+   ["/trigger" {:post #(trigger (-> % :params :name))}]
+   ["/dirs" {:get (fn [_] (response/ok (:bigboard cfg/env)))}]])
