@@ -54,7 +54,7 @@
   (.from from to))
 
 (defn format [dt]
-  (.format dt "MM/DD/YY h:mm"))
+  (.format dt "MM/DD/YY h:mma"))
 
 (defn localdt->moment [dt]
   (-> dt .-rep (js/moment "YYYY-MM-DDThh:mm:ss.SSS")))
