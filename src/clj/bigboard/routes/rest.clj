@@ -72,6 +72,11 @@
     :as params}]
   (let [[v e] (sched/cron? cron)]
     (cond
+      (and (not (str/ends-with? story ".json"))
+           (not (str/ends-with? story ".csv")))
+      (response/bad-request
+       {:reason :story
+        :msg "Story must end in .json or .csv"})
       (not v) (response/bad-request
                {:reason :cron :msg e})
       (sched/mia? reporter) (response/bad-request
@@ -103,6 +108,11 @@
     :as params}]
   (let [[v e] (sched/cron? cron)]
     (cond
+      (and (not (str/ends-with? story ".json"))
+           (not (str/ends-with? story ".csv")))
+      (response/bad-request
+       {:reason :story
+        :msg "Story must end in .json or .csv"})
       (not v) (response/bad-request
                {:reason :cron :msg e})
       (sched/mia? reporter) (response/bad-request
@@ -175,5 +185,4 @@
                   :put #(update-schedule (:params %))
                   :get schedules
                   :delete #(del-schedule (:params %))}]
-   ["/trigger" {:post #(trigger (-> % :params :name))}]
-   ["/dirs" {:get (fn [_] (response/ok (:bigboard cfg/env)))}]])
+   ["/trigger" {:post #(trigger (-> % :params :name))}]])

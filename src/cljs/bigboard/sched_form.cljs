@@ -3,7 +3,10 @@
    [bigboard.sui :refer [component]]
    [bigboard.db :as db]
    [reagent.core :as r]
-   [ajax.core :refer [GET POST DELETE]]))
+   [ajax.core :refer [GET POST DELETE]]
+   [clojure.string :as s]))
+
+(db/request-reporters)
 
 (def reporter (r/atom nil))
 
@@ -11,38 +14,36 @@
 (defn reporters [curr-reporter]
   (let [select (component "Form" "Select")
         group (component "Form" "Group")
-        button (component "Form" "Button")
-        _ (db/request-reporters)]
-    (fn []
-      (let [_ (reset! reporter curr-reporter)]
-        [:div
-         ;; Using label correctly screws up
-         ;; the refresh button alignment.
-         [:label
-          {:for "reporters"
-           :style
-           {:fontSize "13px"
-            :fontWeight 700
-            :lineHeight "18.2px"
-            :marginButton "4px"
-            :color "rgba(0,0,0,0.87)"}}
-          "Reporters"]
-         [:> group
-          [:> select
-           {:error @db/reporters-err
-            ;; :label {:children "Reporter"
-            ;;         :htmlFor "reporter"}
-            :options @db/reporters
-            :placeholder "Choose Reporter"
-            :required true
-            :search true
-            :searchInput {:id "reporter"}
-            :id "reporter"
-            :defaultValue curr-reporter
-            :onChange (fn [_ x] (reset! reporter x))}]
-          [:> button
-           {:icon "refresh"
-            :onClick #(db/request-reporters)}]]]))))
+        button (component "Form" "Button")]
+    (let [_ (reset! reporter curr-reporter)]
+      [:div
+       ;; Using label correctly screws up
+       ;; the refresh button alignment.
+       [:label
+        {:for "reporters"
+         :style
+         {:fontSize "13px"
+          :fontWeight 700
+          :lineHeight "18.2px"
+          :marginButton "4px"
+          :color "rgba(0,0,0,0.87)"}}
+        "Reporters"]
+       [:> group
+        [:> select
+         {:error @db/reporters-err
+          ;; :label {:children "Reporter"
+          ;;         :htmlFor "reporter"}
+          :options @db/reporters
+          :placeholder "Choose Reporter"
+          :required true
+          :search true
+          :searchInput {:id "reporter"}
+          :id "reporter"
+          :defaultValue curr-reporter
+          :onChange (fn [_ x] (reset! reporter x))}]
+        [:> button
+         {:icon "refresh"
+          :onClick #(db/request-reporters)}]]])))
 
 (def cron-err (r/atom nil))
 (def cron-sim (r/atom nil))
@@ -184,8 +185,68 @@
      [:> content
       [cron-help]]]))
 
-(def name-err (r/atom nil))
 (def story-err (r/atom nil))
+(def new-story (r/atom nil))
+
+(defn story-instructions []
+  (let [list (component "List")
+        item (component "List" "Item")]
+    [:> list {:style {:color "gray" :font-style "italic"}}
+     [:> item (str "Generate story at $BIGBOARD__STORIES/" @new-story)]
+     [:> item (str "Generate problem stories at $BIGBOARD__STORIES/" @new-story ".prob")]
+     [:> item (str "Generate error messages at $BIGBOARD__STORIES/" @new-story ".err")]]))
+
+(defn story-help []
+  (let [segment (component "Segment")
+        grid (component "Grid")
+        row (component "Grid" "Row")
+        column (component "Grid" "Column")
+        divider (component "Divider")
+        header (component "Header")]
+    [:> segment {:basic true}
+     [:> grid
+      {:divided true
+       :relaxed true}
+      [:> row {:columns 2}
+       [:> column {:textAlign "center"}
+        [:> header {:as "h4"} "Table"]
+        [:p "A Story containing a comma-delimited table."]]
+       [:> column {:textAlign "center"}
+        [:> header {:as "h4"} "Vega-lite"]
+        [:p "A Story containing a interactive charts & graphs"]]]]]))
+
+(defn check-story-input [event data]
+  (let [val (.-value data)]
+    (reset! new-story val)
+    (if (or (s/ends-with? val ".json")
+            (s/ends-with? val ".csv"))
+      (reset! story-err nil)
+      (reset! story-err "File must end with .json or .csv"))))
+
+(defn stories [curr-story]
+  (let [input (component "Form" "Input")
+        popup (component "Popup")
+        content (component "Popup" "Content")
+        _ (reset! new-story curr-story)]
+    (fn []
+      [:> popup
+       {:flowing true
+        :hoverable true
+        :trigger
+        (r/as-element
+         [:> input
+          {:label "Story"
+           :placeholder "Filename which the reporter will produce, sans path"
+           :maxLength 255
+           :required true
+           :id "story"
+           :error @story-err
+           :defaultValue curr-story
+           :onChange check-story-input}])}
+       [:> content
+        [story-help]]])))
+
+(def name-err (r/atom nil))
 (def contact-err (r/atom nil))
 (def short-desc-err (r/atom nil))
 
@@ -213,13 +274,9 @@
                    :error @name-err
                    :disabled (-> schedule :name some?)
                    :defaultValue (:name schedule)}]
-        [:> input {:label "Story"
-                   :placeholder "Filename which the reporter will produce, sans path"
-                   :maxLength 255
-                   :required true
-                   :id "story"
-                   :error @story-err
-                   :defaultValue (:story schedule)}]
+        [stories (:story schedule)]
+        (when (seq @new-story)
+          [story-instructions])
         [:> input {:label "Contact"
                    :placeholder "Who to contact if something goes wrong"
                    :maxLength 50
@@ -283,6 +340,7 @@
                (map val req))]
     (assoc
      input
+     :story @new-story
      :reporter @reporter
      :trouble (.-value
                (.getElementById

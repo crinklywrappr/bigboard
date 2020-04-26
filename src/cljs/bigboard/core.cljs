@@ -17,6 +17,8 @@
    [bigboard.db :as db])
   (:import goog.History))
 
+;; (set! *warn-on-infer* true)
+
 (defonce session
   (r/atom
    {:page :home}))
@@ -47,6 +49,7 @@
   (reset! sf/cron-err nil)
   (reset! sf/name-err nil)
   (reset! sf/story-err nil)
+  (reset! sf/new-story nil)
   (reset! sf/contact-err nil)
   (reset! sf/short-desc-err nil)
   (reset! db/reporters-err nil))
@@ -117,6 +120,7 @@
   (reset! sf/cron-err nil)
   (reset! sf/name-err nil)
   (reset! sf/story-err nil)
+  (reset! sf/new-story nil)
   (reset! sf/contact-err nil)
   (reset! sf/short-desc-err nil)
   (reset! db/reporters-err nil))
