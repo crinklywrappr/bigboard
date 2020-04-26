@@ -16,34 +16,22 @@
         group (component "Form" "Group")
         button (component "Form" "Button")]
     (let [_ (reset! reporter curr-reporter)]
-      [:div
-       ;; Using label correctly screws up
-       ;; the refresh button alignment.
-       [:label
-        {:for "reporters"
-         :style
-         {:fontSize "13px"
-          :fontWeight 700
-          :lineHeight "18.2px"
-          :marginButton "4px"
-          :color "rgba(0,0,0,0.87)"}}
-        "Reporters"]
-       [:> group
-        [:> select
-         {:error @db/reporters-err
-          ;; :label {:children "Reporter"
-          ;;         :htmlFor "reporter"}
-          :options @db/reporters
-          :placeholder "Choose Reporter"
-          :required true
-          :search true
-          :searchInput {:id "reporter"}
-          :id "reporter"
-          :defaultValue curr-reporter
-          :onChange (fn [_ x] (reset! reporter x))}]
-        [:> button
-         {:icon "refresh"
-          :onClick #(db/request-reporters)}]]])))
+      [:> group
+       [:> select
+        {:error @db/reporters-err
+         :label {:children "Reporter"
+                 :htmlFor "reporter"}
+         :options @db/reporters
+         :placeholder "Choose Reporter"
+         :required true
+         :search true
+         :searchInput {:id "reporter"}
+         :defaultValue curr-reporter
+         :onChange (fn [_ x] (reset! reporter x))}]
+       [:> button
+        {:icon "refresh"
+         :label "⠀" ;; empty unicode character
+         :onClick #(db/request-reporters)}]])))
 
 (def cron-err (r/atom nil))
 (def cron-sim (r/atom nil))
