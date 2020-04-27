@@ -15,24 +15,24 @@
   [curr-reporter]
   (let [select (component "Form" "Select")
         group (component "Form" "Group")
-        button (component "Form" "Button")]
-    (let [_ (reset! reporter curr-reporter)]
-      [:> group
-       [:> select
-        {:error @db/reporters-err
-         :label {:children "Reporter"
-                 :htmlFor "reporter"}
-         :options @db/reporters
-         :placeholder "Choose Reporter"
-         :required true
-         :search true
-         :searchInput {:id "reporter"}
-         :defaultValue curr-reporter
-         :onChange (fn [_ x] (reset! reporter (.-value x)))}]
-       [:> button
-        {:icon "refresh"
-         :label "⠀" ;; empty unicode character
-         :onClick #(db/request-reporters)}]])))
+        button (component "Form" "Button")
+        _ (reset! reporter curr-reporter)]
+    [:> group
+     [:> select
+      {:error @db/reporters-err
+       :label {:children "Reporter"
+               :htmlFor "reporter"}
+       :options @db/reporters
+       :placeholder "Choose Reporter"
+       :required true
+       :search true
+       :searchInput {:id "reporter"}
+       :defaultValue curr-reporter
+       :onChange (fn [_ x] (reset! reporter (.-value x)))}]
+     [:> button
+      {:icon "refresh"
+       :label "⠀" ;; empty unicode character
+       :onClick #(db/request-reporters)}]]))
 
 (def cron-err (r/atom nil))
 (def cron-sim (r/atom nil))
@@ -217,23 +217,22 @@
         popup (component "Popup")
         content (component "Popup" "Content")
         _ (reset! new-story curr-story)]
-    (fn []
-      [:> popup
-       {:flowing true
-        :hoverable true
-        :trigger
-        (r/as-element
-         [:> input
-          {:label "Story"
-           :placeholder "Filename which the reporter will produce, sans path"
-           :maxLength 255
-           :required true
-           :id "story"
-           :error @story-err
-           :defaultValue curr-story
-           :onChange check-story-input}])}
-       [:> content
-        [story-help]]])))
+    [:> popup
+     {:flowing true
+      :hoverable true
+      :trigger
+      (r/as-element
+       [:> input
+        {:label "Story"
+         :placeholder "Filename which the reporter will produce, sans path"
+         :maxLength 255
+         :required true
+         :id "story"
+         :error @story-err
+         :defaultValue curr-story
+         :onChange check-story-input}])}
+     [:> content
+      [story-help]]]))
 
 (def name-err (r/atom nil))
 (def contact-err (r/atom nil))
