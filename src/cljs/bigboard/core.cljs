@@ -319,7 +319,9 @@
          [:> header name]
          [:> meta contact]
          [:> desc short-desc]]
-        [:> content {:extra "true"}
+        [:> content
+         {:extra "true"
+          :style {:max-height "fit-content"}}
          [:> button-group {:class ["four"]}
           [delete-modal name status]
           [update-modal name]

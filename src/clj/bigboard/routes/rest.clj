@@ -169,10 +169,8 @@
 (defn trigger
   [name]
   (try
-    (.start
-     (Thread.
-      (sched/run-schedule
-       (db/get-schedule name))))
+    ((sched/run-schedule
+      (db/get-schedule name)))
     (response/ok)
     (catch Exception e
       (response/internal-server-error
