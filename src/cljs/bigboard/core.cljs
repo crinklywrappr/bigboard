@@ -235,9 +235,9 @@
 (defn get-duration [start finish]
   (let [m (.diff finish start "minutes")
         s (.diff finish start "seconds")]
-    (if (== s 0)
+    (if (< s 1)
       ["Blazing" "Under a second"]
-      (if (== m 0)
+      (if (< m 1)
         ["Fast" (str s "seconds")]
         ["Slow" (str m "minutes")]))))
 
