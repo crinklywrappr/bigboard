@@ -232,6 +232,15 @@
     (= status :error) "red"
     (some (partial = status) [:mia :bad :no-story]) "blue"))
 
+(defn get-duration [start finish]
+  (let [m (.diff finish start "minutes")
+        s (.diff finish start "seconds")]
+    (if (== s 0)
+      ["Blazing" "Under a second"]
+      (if (== m 0)
+        ["Fast" (str s "seconds")]
+        ["Slow" (str m "minutes")]))))
+
 (defn runtimes
   [{:keys [status last-triggered last-finished next-run]}]
   (let [list (component "List")
@@ -265,7 +274,8 @@
             [:> item-header (sf/format nr)]
             (sf/to-phrase (js/moment) nr)]]]]]]
       (let [lt (sf/localdt->moment last-triggered)
-            lf (sf/localdt->moment last-finished)]
+            lf (sf/localdt->moment last-finished)
+            [cat desc] (get-duration lt lf)]
         [:> segment {:basic true}
          [:> grid
           {:divided true
@@ -278,11 +288,9 @@
               [:> item-header (sf/format lt)]
               (sf/from-phrase lt (js/moment))]]]
            [:> column {:textAlign "center"}
-            [:> header {:as "h4"} "Last finish"]
+            [:> header {:as "h4"} "Runtime"]
             [:> list {:size "small" :style {:color "gray" :font-style "italic"}}
-             [:> item
-              [:> item-header (sf/format lf)]
-              (sf/from-phrase lf (js/moment))]]]
+             [:> item [:> item-header cat] desc]]]
            [:> column {:textAlign "center"}
             [:> header {:as "h4"} "Next run"]
             [:> list {:size "small" :style {:color "gray" :font-style "italic"}}
