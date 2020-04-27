@@ -21,7 +21,8 @@
 
 (defonce session
   (r/atom
-   {:page :home}))
+   {:page :home
+    :params {}}))
 
 (defn nav-link [uri title page]
   (let [item (component "Menu" "Item")]
@@ -35,7 +36,7 @@
         menu (component "Menu")]
     [:> menu {:fixed "top" :inverted true :style {:height "60px"}}
      [:> container
-      [:a.item.header {:href "/"} "bigboard"]
+      [:a.item.header {:href "#home"} "bigboard"]
       [nav-link "/" "home" :home]]]))
 
 ;; --- begin: new modal ---
@@ -303,7 +304,13 @@
             {:icon "info"
              :content (str "\"" name "\" status: \"" status "\"")}]
            [:> content
-            [:p @msg]]])))))
+            [:p @msg]]]))
+      :else
+      [:> button
+       {:basic true
+        :href (str "#story/" name)
+        :color "green"
+        :icon "arrow right"}])))
 
 (defn get-duration [start finish]
   (let [m (.diff finish start "minutes")
@@ -475,7 +482,8 @@
 (defn home-page []
   (let [container (component "Container")
         message (component "Message")
-        header (component "Message" "Header")]
+        header (component "Message" "Header")
+        button (component "Button")]
     [:> container {:style {:margin-top "100px"}}
      [new-modal]
      (when (some? @db/schedules-err)
@@ -484,8 +492,14 @@
         [:p (:troubleshoot @db/schedules-err)]])
      [cards]]))
 
+(defn story-page []
+  [:h1
+   {:style {:padding-top "90px"}}
+   (-> @session :params :schedule)])
+
 (def pages
-  {:home #'home-page})
+  {:home #'home-page
+   :story #'story-page})
 
 (defn page []
   [(pages (:page @session))])
@@ -495,13 +509,13 @@
 
 (def router
   (reitit/router
-    [["/" :home]]))
+   [["/" :home]
+    ["story/:schedule" :story]]))
 
 (defn match-route [uri]
   (->> (or (not-empty (string/replace uri #"^.*#" "")) "/")
-       (reitit/match-by-path router)
-       :data
-       :name))
+       (reitit/match-by-path router)))
+
 ;; -------------------------
 ;; History
 ;; must be called after routes have been defined
@@ -510,7 +524,10 @@
     (events/listen
       HistoryEventType/NAVIGATE
       (fn [event]
-        (swap! session assoc :page (match-route (.-token event)))))
+        (if-let [match (match-route (.-token event))]
+          (swap! session assoc
+                 :page (-> match :data :name)
+                 :params (:path-params match)))))
     (.setEnabled true)))
 
 ;; -------------------------

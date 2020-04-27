@@ -19,9 +19,9 @@
   :start
   (ring/ring-handler
    (ring/router
-    [(home-routes)
-     (rest-routes)
-     ws-routes])
+    [(rest-routes)
+     ws-routes
+     (home-routes)])
    (ring/routes
     (ring/create-resource-handler
      {:path "/"})
