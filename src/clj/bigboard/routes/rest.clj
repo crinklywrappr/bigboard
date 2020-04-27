@@ -199,6 +199,33 @@
     (catch Exception e
       (response/internal-server-error))))
 
+(defn error-story
+  "If story is provided, we ignore the name
+  parameter to avoid a database lookup"
+  ([story]
+   (try
+     (let [file (io/file (sched/story-path story "err"))]
+       (if (.exists file)
+         (response/ok
+          (slurp file))
+         (response/not-found
+          "Story missing from filesystem")))
+     (catch Exception e
+       (response/internal-server-error
+        "Problem reading error story"))))
+  ([name story]
+   (cond
+     (seq story) (error-story story)
+     (seq name) (try
+                  (-> name
+                      db/get-schedule
+                      :story error-story)
+                  (catch Exception e
+                    (response/internal-server-error
+                     "Problem querying database for schedule")))
+     :else (response/bad-request
+            "Either provide a schedule name or story name"))))
+
 (defn rest-routes []
   [""
    {:middleware [middleware/wrap-csrf
@@ -210,4 +237,7 @@
                   :get schedules
                   :delete #(del-schedule (:params %))}]
    ["/trigger" {:post #(-> % :params :name trigger)}]
-   ["/data" {:get #(-> % :params :file data)}]])
+   ["/data" {:get #(-> % :params :file data)}]
+   ["/error-story" {:get #(error-story
+                           (-> % :params :name)
+                           (-> % :params :story))}]])

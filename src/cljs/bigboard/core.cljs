@@ -232,6 +232,79 @@
     (= status :error) "red"
     (some (partial = status) [:mia :bad :no-story]) "blue"))
 
+(defn read-story
+  [{:keys [status name story] :as schedule}]
+  (let [button (component "Button")]
+    (cond
+      (some (partial = status) [:new :running])
+      [:> button
+       {:basic true
+        :disabled true
+        :color "green"
+        :icon "arrow right"}]
+      (some (partial = status) [:mia :bad :no-story])
+      (let [modal (component "Modal")
+            header (component "Header")
+            content (component "Modal" "Content")
+            open? (r/atom false)]
+        (fn []
+          [:> modal
+           {:size "tiny"
+            :basic true
+            :open @open?
+            :onClose #(reset! open? false)
+            :trigger
+            (r/as-element
+             [:> button
+              {:basic true
+               :color "green"
+               :icon "arrow right"
+               :onClick #(reset! open? true)}])}
+           [:> header
+            {:icon "info"
+             :content (str "\"" name "\" status: \"" status "\"")}]
+           [:> content
+            [:p (case status
+                  :mia "The reporter is missing from the filesystem"
+                  :bad "The cron configuration is incorrect"
+                  :no-story "The Story has not been generated")]]]))
+      (= status :error)
+      (let [modal (component "Modal")
+            header (component "Header")
+            content (component "Modal" "Content")
+            msg (r/atom "")
+            open? (r/atom false)]
+        (fn []
+          [:> modal
+           {:size "tiny"
+            :basic true
+            :open @open?
+            :onClose #(reset! open? false)
+            :trigger
+            (r/as-element
+             [:> button
+              {:basic true
+               :color "green"
+               :icon "arrow right"
+               :onClick
+               (fn [& args]
+                 (GET "/error-story"
+                      {:params {:story story}
+                       :handler
+                       #(do
+                          (reset! msg %)
+                          (reset! open? true))
+                       :error-handler
+                       #(do
+                          (reset! msg (str "No story generated.  Exit code is: "
+                                           (:exit-code schedule)))
+                          (reset! open? true))}))}])}
+           [:> header
+            {:icon "info"
+             :content (str "\"" name "\" status: \"" status "\"")}]
+           [:> content
+            [:p @msg]]])))))
+
 (defn get-duration [start finish]
   (let [m (.diff finish start "minutes")
         s (.diff finish start "seconds")]
@@ -260,11 +333,11 @@
          :relaxed true}
         [:> row {:columns 3}
          [:> column {:textAlign "center"}
-          [:> header {:as "h4"} "Last start"]
+          [:> header {:as "h4"} "Last run"]
           [:> list {:size "small" :style {:color "gray" :font-style "italic"}}
            [:> item "Has not run yet"]]]
          [:> column {:textAlign "center"}
-          [:> header {:as "h4"} "Last finish"]
+          [:> header {:as "h4"} "Runtime"]
           [:> list {:size "small" :style {:color "gray" :font-style "italic"}}
            [:> item "Has not run yet"]]]
          [:> column {:textAlign "center"}
@@ -282,7 +355,7 @@
            :relaxed true}
           [:> row {:columns 3}
            [:> column {:textAlign "center"}
-            [:> header {:as "h4"} "Last start"]
+            [:> header {:as "h4"} "Last run"]
             [:> list {:size "small" :style {:color "gray" :font-style "italic"}}
              [:> item
               [:> item-header (sf/format lt)]
@@ -318,6 +391,7 @@
     [:> popup
      {:wide "very"
       :flowing true
+      :basic true
       :trigger
       (r/as-element
        [:> card {:color (get-card-color status)}
@@ -371,6 +445,7 @@
          [:> desc short-desc]]
         [:> content
          {:extra "true"
+          :class "card-bottom"
           :style {:max-height "fit-content"}}
          [:> button-group {:class ["four"]}
           [delete-modal name status]
@@ -381,11 +456,7 @@
             :color "blue"
             :icon "terminal"
             :onClick #(POST "/trigger" {:params {:name name}})}]
-          [:> button
-           {:basic true
-            :disabled (some (partial = status) [:mia :bad :no-story :new :running])
-            :color "green"
-            :icon "arrow right"}]]]])}
+          [read-story sched]]]])}
      [:> content
       [runtimes sched]]]))
 

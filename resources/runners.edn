@@ -1,4 +1,4 @@
 ;; This can take schedule names as
 ;; well as file extensions for keys
-{".python" ["python"]
+{".py" ["python"]
  ".jar" ["java" "-jar"]}
