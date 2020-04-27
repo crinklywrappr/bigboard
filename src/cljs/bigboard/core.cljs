@@ -111,27 +111,28 @@
 
 ;; --- begin: update modal ---
 
-(def update-modal? (r/atom false))
+(defn close-update-modal
+  [open?]
+  (fn [& args]
+    (reset! open? false)
+    (reset! sf/schedule-err nil)
+    (reset! sf/cron-sim nil)
+    (reset! sf/cron-err nil)
+    (reset! sf/name-err nil)
+    (reset! sf/story-err nil)
+    (reset! sf/new-story nil)
+    (reset! sf/contact-err nil)
+    (reset! sf/short-desc-err nil)
+    (reset! db/reporters-err nil)))
 
-(defn close-update-modal [& args]
-  (reset! sf/schedule-err nil)
-  (reset! update-modal? false)
-  (reset! sf/cron-sim nil)
-  (reset! sf/cron-err nil)
-  (reset! sf/name-err nil)
-  (reset! sf/story-err nil)
-  (reset! sf/new-story nil)
-  (reset! sf/contact-err nil)
-  (reset! sf/short-desc-err nil)
-  (reset! db/reporters-err nil))
-
-(defn update-schedule [schedule]
+(defn update-schedule
+  [close-fn schedule]
   (PUT "/schedules"
        {:params schedule
         :handler
         #(do
            (ws/send-transit-msg! {:cmd :refresh :element :schedules})
-           (close-update-modal))
+           (close-fn))
         :error-handler
         (fn [resp]
           (if (== (:status resp) 500)
@@ -142,7 +143,8 @@
                 :reporter (reset! db/reporters-err msg)
                 :story (reset! sf/story-err msg)))))}))
 
-(defn update-button []
+(defn update-button
+  [close-fn]
   (let [button (component "Button")]
     [:> button
      {:primary true
@@ -150,33 +152,37 @@
       (fn [& args]
         (let [speculative-schedule (sf/build-schedule-from-input)]
           (when (sf/validate speculative-schedule)
-            (update-schedule speculative-schedule))))}
+            (update-schedule close-fn speculative-schedule))))}
      "Update"]))
 
-(defn update-modal [schedule]
+(defn update-modal
+  [name]
   (let [button (component "Button")
         icon (component "Icon")
         modal (component "Modal")
         header (component "Header")
         content (component "Modal" "Content")
-        actions (component "Modal" "Actions")]
-    [:> modal
-     {:trigger (r/as-element
-                [:> button
-                 {:basic true
-                  :color "yellow"
-                  :icon "edit"
-                  :onClick #(reset! update-modal? true)}])
-      :size "tiny"
-      :open @update-modal?
-      :onClose close-update-modal}
-     [:> header
-      {:icon "edit"
-       :content "Update"}]
-     [:> content
-      [sf/sched-form schedule]]
-     [:> actions
-      [update-button]]]))
+        actions (component "Modal" "Actions")
+        open? (r/atom false)
+        close (close-update-modal open?)]
+    (fn []
+      [:> modal
+       {:trigger (r/as-element
+                  [:> button
+                   {:basic true
+                    :color "yellow"
+                    :icon "edit"
+                    :onClick #(reset! open? true)}])
+        :size "tiny"
+        :open @open?
+        :onClose close}
+       [:> header
+        {:icon "edit"
+         :content "Update"}]
+       [:> content
+        [sf/sched-form name]]
+       [:> actions
+        [update-button close]]])))
 
 ;; --- end: update modal
 
@@ -224,7 +230,7 @@
     (some (partial = status) [:new :running :success]) "green"
     (= status :problem) "yellow"
     (= status :error) "red"
-    (= status :stale) "gray"))
+    (= status :stale) "grey"))
 
 (defn runtimes
   [{:keys [last-triggered last-finished next-run]}]
@@ -264,9 +270,10 @@
           [:> item-header (sf/format nr)]
           (sf/to-phrase (js/moment) nr)]]]]]]))
 
-(defn card [{:keys [name contact short-desc
-                    cron reporter status]
-             :as sched}]
+(defn card
+  [{:keys [name contact short-desc
+           cron reporter status]
+    :as sched}]
   (let [card (component "Card")
         content (component "Card" "Content")
         header (component "Card" "Header")
@@ -278,57 +285,55 @@
         dimmer (component "Dimmer")
         dimmable (component "Dimmer" "Dimmable")
         loader (component "Loader")
-        card-color (get-card-color status)
         popup (component "Popup")
         content (component "Popup" "Content")]
     [:> popup
      {:wide "very"
       :flowing true
-      :hoverable true
       :trigger
       (r/as-element
-       [:> card {:color card-color}
-     [:> dimmable
-      {:as content}
-      (cond
-        (= status :running)
-        [:> dimmer
-         {:active true
-          :inverted true}
-         [:> loader "Running"]]
-        (= status :server-error)
-        [:> dimmer
-         {:active true
-          :style {:backgroundColor "rgba(183, 28, 28, 0.85)"}}
-         "Server Error"]
-        (= status :not-found)
-        [:> dimmer
-         {:active true
-          :style {:backgroundColor "rgba(183, 28, 28, 0.85)"}}
-         "Not Found"]
-        :else [:> dimmer {:active false}])
-      (when (some (partial = status) [:mia :bad :no-story])
-        [:> icon {:style {:float "right"}
-                  :size "big"
-                  :name "exclamation"}])
-      [:> header name]
-      [:> meta contact]
-      [:> desc short-desc]]
-     [:> content {:extra true}
-      [:> button-group {:class ["four"]}
-       [delete-modal name status]
-       [update-modal sched]
-       [:> button
-        {:basic true
-         :disabled (some (partial = status) [:mia :bad :running])
-         :color "blue"
-         :icon "terminal"
-         :onClick #(POST "/trigger" {:params {:name name}})}]
-       [:> button
-        {:basic true
-         :disabled (some (partial = status) [:mia :bad :no-story :new :running])
-         :color "green"
-         :icon "arrow right"}]]]])}
+       [:> card {:color (get-card-color status)}
+        [:> dimmable
+         {:as content}
+         (cond
+           (= status :running)
+           [:> dimmer
+            {:active true
+             :inverted true}
+            [:> loader "Running"]]
+           (= status :server-error)
+           [:> dimmer
+            {:active true
+             :style {:backgroundColor "rgba(183, 28, 28, 0.85)"}}
+            "Server Error"]
+           (= status :not-found)
+           [:> dimmer
+            {:active true
+             :style {:backgroundColor "rgba(183, 28, 28, 0.85)"}}
+            "Not Found"]
+           :else [:> dimmer {:active false}])
+         (when (some (partial = status) [:mia :bad :no-story])
+           [:> icon {:style {:float "right"}
+                     :size "big"
+                     :name "exclamation"}])
+         [:> header name]
+         [:> meta contact]
+         [:> desc short-desc]]
+        [:> content {:extra "true"}
+         [:> button-group {:class ["four"]}
+          [delete-modal name status]
+          [update-modal name]
+          [:> button
+           {:basic true
+            :disabled (some (partial = status) [:mia :bad :running])
+            :color "blue"
+            :icon "terminal"
+            :onClick #(POST "/trigger" {:params {:name name}})}]
+          [:> button
+           {:basic true
+            :disabled (some (partial = status) [:mia :bad :no-story :new :running])
+            :color "green"
+            :icon "arrow right"}]]]])}
      [:> content
       [runtimes sched]]]))
 
@@ -338,23 +343,23 @@
                :stackable true
                :style {:margin-top "80px"}}
      (doall
-      (for [c @db/schedules]
-        ^{:key (:name c)}
-        [card c]))]))
+      (for [s @db/schedules]
+        ^{:key (:name s)}
+        [card s]))]))
+
+(db/request-schedules)
 
 (defn home-page []
   (let [container (component "Container")
         message (component "Message")
-        header (component "Message" "Header")
-        _ (db/request-schedules)]
-    (fn []
-      [:> container {:style {:margin-top "100px"}}
-       [new-modal]
-       (when (some? @db/schedules-err)
-         [:> message {:negative true}
-          [:> header (:header @db/schedules-err)]
-          [:p (:troubleshoot @db/schedules-err)]])
-       [cards]])))
+        header (component "Message" "Header")]
+    [:> container {:style {:margin-top "100px"}}
+     [new-modal]
+     (when (some? @db/schedules-err)
+       [:> message {:negative true}
+        [:> header (:header @db/schedules-err)]
+        [:p (:troubleshoot @db/schedules-err)]])
+     [cards]]))
 
 (def pages
   {:home #'home-page})

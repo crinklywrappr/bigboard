@@ -11,7 +11,8 @@
 (def reporter (r/atom nil))
 
 ;; The reporters element is a bit complex
-(defn reporters [curr-reporter]
+(defn reporters
+  [curr-reporter]
   (let [select (component "Form" "Select")
         group (component "Form" "Group")
         button (component "Form" "Button")]
@@ -27,7 +28,7 @@
          :search true
          :searchInput {:id "reporter"}
          :defaultValue curr-reporter
-         :onChange (fn [_ x] (reset! reporter x))}]
+         :onChange (fn [_ x] (reset! reporter (.-value x)))}]
        [:> button
         {:icon "refresh"
          :label "⠀" ;; empty unicode character
@@ -243,7 +244,7 @@
   (r/atom nil))
 
 (defn sched-form
-  ([schedule]
+  ([name]
    (let [form (component "Form")
          input (component "Form" "Input")
          textarea (component "Form" "TextArea")
@@ -251,53 +252,58 @@
          item (component "List" "Item")
          button (component "Button")
          message (component "Message")
-         header (component "Message" "Header")]
-     (fn []
-       [:> form
-        [:> input {:label "Name (28 chars)"
-                   :placeholder "Name"
-                   :maxLength 28
-                   :required true
-                   :id "name"
-                   :error @name-err
-                   :disabled (-> schedule :name some?)
-                   :defaultValue (:name schedule)}]
-        [stories (:story schedule)]
-        (when (seq @new-story)
-          [story-instructions])
-        [:> input {:label "Contact"
-                   :placeholder "Who to contact if something goes wrong"
-                   :maxLength 50
-                   :required true
-                   :id "contact"
-                   :error @contact-err
-                   :defaultValue (:contact schedule)}]
-        [:> textarea {:label "Short description (140 chars)"
-                      :placeholder "Description which will appear on the front page"
-                      :maxLength 140
-                      :required true
-                      :id "short-desc"
-                      :error @short-desc-err
-                      :defaultValue (:short-desc schedule)}]
-        [:> textarea {:label "Long description"
-                      :placeholder "More details which will go on the detail page"
-                      :id "long-desc"
-                      :defaultValue (:long-desc schedule)}]
-        [:> textarea {:label "Troubleshooting"
-                      :placeholder "What steps should be taken to resolve this issue, if reported?"
-                      :id "trouble"
-                      :defaultValue (:trouble schedule)}]
-        [reporters (:reporter schedule)]
-        [cron (:cron schedule)]
-        (when (seq @cron-sim)
-          [simulate])
-        (when (some? @schedule-err)
-          [:> message {:negative true}
-           [:> header (:header @schedule-err)]
-           [:p (:troubleshoot @schedule-err)]])])))
+         header (component "Message" "Header")
+         ;; this is necessary in order to force
+         ;; this component to re-render
+         schedule (some
+                   #(when (= (:name %) name) %)
+                   @db/schedules)]
+     [:> form
+      [:> input {:label "Name (28 chars)"
+                 :placeholder "Name"
+                 :maxLength 28
+                 :required true
+                 :id "name"
+                 :error @name-err
+                 :disabled (-> schedule :name some?)
+                 :defaultValue (:name schedule)}]
+      [stories (:story schedule)]
+      (when (seq @new-story)
+        [story-instructions])
+      [:> input {:label "Contact"
+                 :placeholder "Who to contact if something goes wrong"
+                 :maxLength 50
+                 :required true
+                 :id "contact"
+                 :error @contact-err
+                 :defaultValue (:contact schedule)}]
+      [:> textarea {:label "Short description (140 chars)"
+                    :placeholder "Description which will appear on the front page"
+                    :maxLength 140
+                    :required true
+                    :id "short-desc"
+                    :error @short-desc-err
+                    :defaultValue (:short-desc schedule)}]
+      [:> textarea {:label "Long description"
+                    :placeholder "More details which will go on the detail page"
+                    :id "long-desc"
+                    :defaultValue (:long-desc schedule)}]
+      [:> textarea {:label "Troubleshooting"
+                    :placeholder "What steps should be taken to resolve this issue, if reported?"
+                    :id "trouble"
+                    :defaultValue (:trouble schedule)}]
+      [reporters (:reporter schedule)]
+      [cron (:cron schedule)]
+      (when (seq @cron-sim)
+        [simulate])
+      (when (some? @schedule-err)
+        [:> message {:negative true}
+         [:> header (:header @schedule-err)]
+         [:p (:troubleshoot @schedule-err)]])]))
   ([] (sched-form {})))
 
-(defn validate [{:keys [name story contact short-desc reporter cron]}]
+(defn validate
+  [{:keys [name story contact short-desc reporter cron]}]
   (if (= name "")
     (reset! name-err "This field is required")
     (reset! name-err nil))

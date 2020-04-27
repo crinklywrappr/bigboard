@@ -11,7 +11,8 @@
    [gooff.core :as go]
    [clj-time.format :as f]
    [clj-time.core :as t]
-   [clojure.string :as str]))
+   [clojure.string :as str])
+  (:import [java.io FilenameFilter]))
 
 (defn reporters
   [request]
@@ -168,12 +169,37 @@
 (defn trigger
   [name]
   (try
-    ((sched/run-schedule
-      (db/get-schedule name)))
+    (.start
+     (Thread.
+      (sched/run-schedule
+       (db/get-schedule name))))
     (response/ok)
     (catch Exception e
       (response/internal-server-error
        (.getMessage e)))))
+
+(defn data
+  "returns the contents of file from
+  the BIGBOARD__DATA directory"
+  [file]
+  (try
+    (if (seq (-> cfg/env :bigboard :data))
+      (let [path (-> cfg/env :bigboard :data io/file)]
+        (if (.exists path)
+          (if-let [f (first
+                      (.listFiles
+                       path
+                       (reify FilenameFilter
+                         (accept [_ _ f]
+                           (= f file)))))]
+            (response/ok (slurp f))
+            (response/not-found
+             (str file " not found in BIGBOARD__DATA")))
+          (response/not-found
+           "BIGBOARD__DATA missing from filesystem")))
+      (response/not-found "BIGBOARD__DATA not set"))
+    (catch Exception e
+      (response/internal-server-error))))
 
 (defn rest-routes []
   [""
@@ -185,4 +211,5 @@
                   :put #(update-schedule (:params %))
                   :get schedules
                   :delete #(del-schedule (:params %))}]
-   ["/trigger" {:post #(trigger (-> % :params :name))}]])
+   ["/trigger" {:post #(-> % :params :name trigger)}]
+   ["/data" {:get #(-> % :params :file data)}]])

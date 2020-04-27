@@ -6,7 +6,9 @@
             [mount.core :refer [defstate]]
             [clojure.java.io :as io]
             [clojure.java.shell :refer [sh]]
-            [clj-time.core :as t])
+            [clj-time.core :as t]
+            [clojure.edn :as edn]
+            [clojure.string :as s])
   (:import [java.sql Timestamp]
            [java.io File]
            [java.util Date]))
@@ -44,7 +46,7 @@
   "Looks for a .prob file *first*"
   [{:keys [last-triggered last-finished reporter] :as sched}]
   (let [story (io/file (story-path (:story sched)))
-        prob (io/file (story-path (:story sched) ".prob"))
+        prob (io/file (story-path (:story sched) "prob"))
         [good? _] (cron? (:cron sched))]
     (cond
       (mia? reporter) :mia
@@ -59,8 +61,11 @@
       (let [[file type] (if (.exists prob)
                           [prob :problem]
                           [story :success])
-            ts (.toLocalDateTime (Timestamp. (.lastModified story)))]
-        (if (and (.isAfter last-triggered ts) (.isAfter last-finished ts))
+            ts (.toLocalDateTime
+                (Timestamp.
+                 (.lastModified file)))]
+        (if (and (.isAfter last-triggered ts)
+                 (.isAfter last-finished ts))
           :stale
           type)))))
 
@@ -117,6 +122,21 @@
    :status (status schedule)
    :next-run (next-run name)))
 
+(defn get-extension [reporter]
+  (str "." (last (s/split reporter #"\."))))
+
+(defn get-runner
+  "by default just returns [reporter]"
+  [name reporter]
+  (let [runners (-> "runners.edn"
+                    io/resource
+                    slurp
+                    edn/read-string)]
+    (conj
+     (or (get runners name)
+         (get runners (get-extension reporter) []))
+     reporter)))
+
 (defn run-schedule
   "Returns a function which executes the schedule in this order:
   1. update last-trigger
@@ -143,8 +163,8 @@
       (let [rp (reporter-path reporter)]
         (when (.exists (io/file rp))
           (try
-            (->> rp sh :exit
-                 (db/record-finished name))
+            (->> rp (get-runner name) (apply sh)
+                 :exit (db/record-finished name))
             (catch Exception e
               (db/record-finished name 1)
               (make-error-file story e)))))
