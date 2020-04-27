@@ -217,22 +217,23 @@
         popup (component "Popup")
         content (component "Popup" "Content")
         _ (reset! new-story curr-story)]
-    [:> popup
-     {:flowing true
-      :hoverable true
-      :trigger
-      (r/as-element
-       [:> input
-        {:label "Story"
-         :placeholder "Filename which the reporter will produce, sans path"
-         :maxLength 255
-         :required true
-         :id "story"
-         :error @story-err
-         :defaultValue curr-story
-         :onChange check-story-input}])}
-     [:> content
-      [story-help]]]))
+    (fn []
+      [:> popup
+       {:flowing true
+        :hoverable true
+        :trigger
+        (r/as-element
+         [:> input
+          {:label "Story"
+           :placeholder "Filename which the reporter will produce, sans path"
+           :maxLength 255
+           :required true
+           :id "story"
+           :error @story-err
+           :defaultValue curr-story
+           :onChange check-story-input}])}
+       [:> content
+        [story-help]]])))
 
 (def name-err (r/atom nil))
 (def contact-err (r/atom nil))
