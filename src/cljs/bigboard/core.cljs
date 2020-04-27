@@ -233,7 +233,7 @@
     (= status :stale) "grey"))
 
 (defn runtimes
-  [{:keys [last-triggered last-finished next-run]}]
+  [{:keys [status last-triggered last-finished next-run]}]
   (let [list (component "List")
         item (component "List" "Item")
         item-header (component "List" "Header")
@@ -243,32 +243,52 @@
         column (component "Grid" "Column")
         divider (component "Divider")
         header (component "Header")
-        lt (sf/localdt->moment last-triggered)
-        lf (sf/localdt->moment last-finished)
         nr (sf/localdt->moment next-run)]
-    [:> segment {:basic true}
-     [:> grid
-      {:divided true
-       :relaxed true}
-      [:> row {:columns 3}
-       [:> column {:textAlign "center"}
-        [:> header {:as "h4"} "Last start"]
-        [:> list {:size "small" :style {:color "gray" :font-style "italic"}}
-         [:> item
-          [:> item-header (sf/format lt)]
-          (sf/from-phrase lt (js/moment))]]]
-       [:> column {:textAlign "center"}
-        [:> header {:as "h4"} "Last finish"]
-        [:> list {:size "small" :style {:color "gray" :font-style "italic"}}
-         [:> item
-          [:> item-header (sf/format lf)]
-          (sf/from-phrase lf (js/moment))]]]
-       [:> column {:textAlign "center"}
-        [:> header {:as "h4"} "Next run"]
-        [:> list {:size "small" :style {:color "gray" :font-style "italic"}}
-         [:> item
-          [:> item-header (sf/format nr)]
-          (sf/to-phrase (js/moment) nr)]]]]]]))
+    (if (= status :new)
+      [:> segment {:basic true}
+       [:> grid
+        {:divided true
+         :relaxed true}
+        [:> row {:columns 3}
+         [:> column {:textAlign "center"}
+          [:> header {:as "h4"} "Last start"]
+          [:> list {:size "small" :style {:color "gray" :font-style "italic"}}
+           [:> item "Has not run yet"]]]
+         [:> column {:textAlign "center"}
+          [:> header {:as "h4"} "Last finish"]
+          [:> list {:size "small" :style {:color "gray" :font-style "italic"}}
+           [:> item "Has not run yet"]]]
+         [:> column {:textAlign "center"}
+          [:> header {:as "h4"} "Next run"]
+          [:> list {:size "small" :style {:color "gray" :font-style "italic"}}
+           [:> item
+            [:> item-header (sf/format nr)]
+            (sf/to-phrase (js/moment) nr)]]]]]]
+      (let [lt (sf/localdt->moment last-triggered)
+            lf (sf/localdt->moment last-finished)]
+        [:> segment {:basic true}
+         [:> grid
+          {:divided true
+           :relaxed true}
+          [:> row {:columns 3}
+           [:> column {:textAlign "center"}
+            [:> header {:as "h4"} "Last start"]
+            [:> list {:size "small" :style {:color "gray" :font-style "italic"}}
+             [:> item
+              [:> item-header (sf/format lt)]
+              (sf/from-phrase lt (js/moment))]]]
+           [:> column {:textAlign "center"}
+            [:> header {:as "h4"} "Last finish"]
+            [:> list {:size "small" :style {:color "gray" :font-style "italic"}}
+             [:> item
+              [:> item-header (sf/format lf)]
+              (sf/from-phrase lf (js/moment))]]]
+           [:> column {:textAlign "center"}
+            [:> header {:as "h4"} "Next run"]
+            [:> list {:size "small" :style {:color "gray" :font-style "italic"}}
+             [:> item
+              [:> item-header (sf/format nr)]
+              (sf/to-phrase (js/moment) nr)]]]]]]))))
 
 (defn card
   [{:keys [name contact short-desc
