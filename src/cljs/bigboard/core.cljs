@@ -226,11 +226,11 @@
   Gray -> Story is old - The reporter does not seem to be producing a story"
   [status]
   (cond
-    (some (partial = status) [:mia :bad :no-story]) "blue"
     (some (partial = status) [:new :running :success]) "green"
     (= status :problem) "yellow"
+    (= status :stale) "grey"
     (= status :error) "red"
-    (= status :stale) "grey"))
+    (some (partial = status) [:mia :bad :no-story]) "blue"))
 
 (defn runtimes
   [{:keys [status last-triggered last-finished next-run]}]
@@ -332,10 +332,32 @@
              :style {:backgroundColor "rgba(183, 28, 28, 0.85)"}}
             "Not Found"]
            :else [:> dimmer {:active false}])
-         (when (some (partial = status) [:mia :bad :no-story])
+         (cond
+           (some (partial = status) [:new :success])
            [:> icon {:style {:float "right"}
                      :size "big"
-                     :name "exclamation"}])
+                     :name "check"
+                     :color "green"}]
+           (= status :problem)
+           [:> icon {:style {:float "right"}
+                     :size "big"
+                     :name "exclamation"
+                     :color "yellow"}]
+           (= status :stale)
+           [:> icon {:style {:float "right"}
+                     :size "big"
+                     :name "bug"
+                     :color "grey"}]
+           (some (partial = status) [:mia :bad :no-story])
+           [:> icon {:style {:float "right"}
+                     :size "big"
+                     :name "exclamation"
+                     :color "blue"}]
+           (= status :error)
+           [:> icon {:style {:float "right"}
+                     :size "big"
+                     :name "bomb"
+                     :color "red"}])
          [:> header name]
          [:> meta contact]
          [:> desc short-desc]]
