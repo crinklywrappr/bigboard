@@ -20,14 +20,14 @@ You will need to configure 3 environment variables.  Note that there are **two u
 
 Within the jar are a couple of editable resource files you may want to change
 
-- `runners.edn`: A map of file extensions (eg .py), and the commands required to run them
+- `runners.edn`: A map of file extensions (eg `.py`), and the commands required to run them
 - `config.edn`: You can edit the port (default: 10000) & database url (default: installation directory) here.
 
 ## Nomenclature
 
 Bigboard borrows 3 words from the newsroom
 
-- Reporters: scripts which generate .csv or .json files
+- Reporters: scripts which generate `.csv` or `.json` files
 - Stories: `.csv` or `.json` files which describe some data being reported
 - Schedules: A reporter and story together with a cron schedule and a name.
 
