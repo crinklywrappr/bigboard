@@ -36,7 +36,8 @@
                  [selmer "1.12.19"]
                  [cljsjs/semantic-ui-react "0.88.1-0"]
                  [gooff "0.0.2"]
-                 [cljsjs/moment "2.24.0-0"]]
+                 [cljsjs/moment "2.24.0-0"]
+                 [org.clojure/data.csv "1.0.0"]]
 
   :min-lein-version "2.0.0"
 

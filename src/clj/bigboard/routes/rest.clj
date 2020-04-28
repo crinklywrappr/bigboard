@@ -1,5 +1,6 @@
 (ns bigboard.routes.rest
   (:require
+   [clojure.data.csv :as csv]
    [clojure.java.io :as io]
    [bigboard.middleware :as middleware]
    [bigboard.config :as cfg]
@@ -11,7 +12,8 @@
    [gooff.core :as go]
    [clj-time.format :as f]
    [clj-time.core :as t]
-   [clojure.string :as str])
+   [clojure.string :as s]
+   [camel-snake-kebab.core :refer [->kebab-case-keyword]])
   (:import [java.io FilenameFilter]))
 
 (defn reporters
@@ -61,11 +63,10 @@
 
 (defn duplicate-story?
   [exception]
-  (str/includes?
+  (s/includes?
    (.getMessage (.getCause exception))
    "UNIQUE_STORIES"))
 
-;; TODO: Add story filename extension verification
 (defn add-schedule
   [{:keys [name story contact
            short-desc long-desc
@@ -73,8 +74,8 @@
     :as params}]
   (let [[v e] (sched/cron? cron)]
     (cond
-      (and (not (str/ends-with? story ".json"))
-           (not (str/ends-with? story ".csv")))
+      (and (not (s/ends-with? story ".json"))
+           (not (s/ends-with? story ".csv")))
       (response/bad-request
        {:reason :story
         :msg "Story must end in .json or .csv"})
@@ -109,8 +110,8 @@
     :as params}]
   (let [[v e] (sched/cron? cron)]
     (cond
-      (and (not (str/ends-with? story ".json"))
-           (not (str/ends-with? story ".csv")))
+      (and (not (s/ends-with? story ".json"))
+           (not (s/ends-with? story ".csv")))
       (response/bad-request
        {:reason :story
         :msg "Story must end in .json or .csv"})
@@ -226,6 +227,80 @@
      :else (response/bad-request
             "Either provide a schedule name or story name"))))
 
+(defn csv-data->maps
+  [csv-data]
+  {:columns
+   (map
+    (fn [col]
+      {:name col
+       :data (->kebab-case-keyword col)})
+    (first csv-data))
+   :data
+   (doall
+    (map zipmap
+         (->> (first csv-data)
+              (map ->kebab-case-keyword)
+              repeat)
+         (rest csv-data)))})
+
+(defn read-csv
+  [story]
+  (response/ok
+   (assoc
+    (csv-data->maps
+     (csv/read-csv
+      (io/reader story)))
+    :timestamp (sched/last-modified story))))
+
+;; TODO: flesh out
+(defn read-json
+  [story]
+  (response/ok
+   (slurp story)))
+
+(defn read-story
+  [prefix story]
+  (cond
+    (s/ends-with? prefix ".csv") (read-csv story)
+    (s/ends-with? prefix ".json") (read-json story)
+    :else
+    (response/expectation-failed
+     "Story expected to be either .csv or .json with a possible .prob extension")))
+
+(def x (atom nil))
+
+(defn get-story
+  "If story is provided, we ignore the name
+  parameter to avoid a database lookup.
+  Like status, this function also ignores a
+  good story if a problem story exists"
+  ([story]
+   (try
+     (let [prob (io/file (sched/story-path story "prob"))
+           good (io/file (sched/story-path story))]
+       (cond
+         (.exists prob) (read-story story prob)
+         (.exists good) (read-story story good)
+         :else
+         (response/not-found
+          "Story missing from filesystem")))
+     (catch Exception e
+       (reset! x e)
+       (response/internal-server-error
+        "Problem reading error story"))))
+  ([name story]
+   (cond
+     (seq story) (get-story story)
+     (seq name) (try
+                  (-> name
+                      db/get-schedule
+                      :story get-story)
+                  (catch Exception e
+                    (response/internal-server-error
+                     "Problem querying database for schedule")))
+     :else (response/bad-request
+            "Either provide a schedule name or story name"))))
+
 (defn rest-routes []
   [""
    {:middleware [middleware/wrap-csrf
@@ -240,4 +315,7 @@
    ["/data" {:get #(-> % :params :file data)}]
    ["/error-story" {:get #(error-story
                            (-> % :params :name)
-                           (-> % :params :story))}]])
+                           (-> % :params :story))}]
+   ["/story" {:get #(get-story
+                     (-> % :params :name)
+                     (-> % :params :story))}]])

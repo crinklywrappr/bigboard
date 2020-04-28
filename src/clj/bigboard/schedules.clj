@@ -42,6 +42,12 @@
      (reporter-path
       reporter)))))
 
+(defn last-modified
+  [file]
+  (.toLocalDateTime
+   (Timestamp.
+    (.lastModified file))))
+
 (defn status
   "Looks for a .prob file *first*"
   [{:keys [last-triggered last-finished reporter] :as sched}]
@@ -61,9 +67,7 @@
       (let [[file type] (if (.exists prob)
                           [prob :problem]
                           [story :success])
-            ts (.toLocalDateTime
-                (Timestamp.
-                 (.lastModified file)))]
+            ts (last-modified file)]
         (if (and (.isAfter last-triggered ts)
                  (.isAfter last-finished ts))
           :stale
