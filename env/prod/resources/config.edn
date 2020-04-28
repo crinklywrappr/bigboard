@@ -1,2 +1,3 @@
 {:prod true
- :port 10000}
+ :port 10000
+ :database-url "jdbc:h2:./bigboard.db"}

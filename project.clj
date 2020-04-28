@@ -1,6 +1,6 @@
-(defproject bigboard "0.1.0-SNAPSHOT"
+(defproject bigboard "0.0.1"
 
-  :description "FIXME: write description"
+  :description "Monitoring station with web interface & cron scheduling. "
   :url "http://example.com/FIXME"
 
   :dependencies [[ch.qos.logback/logback-classic "1.2.3"]
@@ -76,7 +76,6 @@
                  :externs ["react/externs/react.js"]}}}}
 
              :aot :all
-             :uberjar-name "bigboard.jar"
              :source-paths ["env/prod/clj" ]
              :resource-paths ["env/prod/resources"]}
 

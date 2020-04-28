@@ -5,13 +5,19 @@
     [conman.core :as conman]
     [mount.core :refer [defstate]]
     [bigboard.config :refer [env]]
+    [luminus-migrations.core :refer [migrate]]
     [camel-snake-kebab.extras :refer [transform-keys]]
     [camel-snake-kebab.core :refer [->kebab-case-keyword
                                     ->snake_case_keyword]]))
 
+
 (defstate ^:dynamic *db*
           :start (conman/connect! {:jdbc-url (env :database-url)})
           :stop (conman/disconnect! *db*))
+
+(defstate migration
+  :start (when (:prod env)
+           (migrate ["migrate"] (select-keys env [:database-url]))))
 
 (defstate queries
   :start (conman/load-queries "sql/queries.sql"))
