@@ -3,6 +3,9 @@
    [reagent.core :as r]
    [bigboard.sui :refer [component]]
    [bigboard.db :as db]
+   [bigboard.sched-form :refer [localdt->moment
+                                from-phrase
+                                format]]
    [ajax.core :refer [GET]]
    [clojure.string :as s]))
 
@@ -77,6 +80,7 @@
         header (component "Header")
         icon (component "Icon")
         content (component "Header" "Content")
+        subheader (component "Header" "Subheader")
         {:keys [name status story] :as schedule}
         (some #(when (= name (:name %)) %) @db/schedules)
         _ (reset! story-data nil)
@@ -86,7 +90,7 @@
     (fn []
       [:div
        [:> header
-        {:as "h1"
+        {:size "huge"
          :icon true
          :textAlign "center"
          :style {:margin-top "110px"
@@ -97,11 +101,21 @@
                  :color "white"}}
         [:> icon
          {:name (header-icon status)
-          :circular true}]
-        [:> content
-         name]]
+          :circular true
+          :loading (nil? @story-data)}]
+        name
+        (if (nil? @story-data)
+          [:> subheader {:color "grey"} "Loading..."]
+          [:> subheader
+           {:color "grey"}
+           (let [ts (-> @story-data
+                        :timestamp
+                        localdt->moment)]
+             (str "Last generated "
+                  (from-phrase ts (js/moment))
+                  " at " (format ts)))])]
        (when @story-data
-         (let [{:keys [columns data timestamp]} @story-data]
+         (let [{:keys [columns data]} @story-data]
            (cond
              (s/ends-with? story ".csv") [table columns data]
              (s/ends-with? story ".json") [vega schedule]
