@@ -25,7 +25,7 @@ Within the jar are a couple of editable resource files you may want to change
 
 ## Nomenclature
 
-Bigboard borrows two words from the newsroom
+Bigboard borrows 3 words from the newsroom
 
 - Reporters: scripts which generate .csv or .json files
 - Stories: .csv or .json files which describe some data being reported
@@ -33,8 +33,9 @@ Bigboard borrows two words from the newsroom
 
 ## Stories
 
-Stories can have 2 different extensions.  If your story is, for example, `out.csv`, then your reporter could also generate
+Stories can have 3 different extensions.  If your story is, for example, `out.csv`, then your reporter can generate
 
+- out.csv: everything is good - no problems to report here.
 - out.csv.prob: Indicates that your reporter found some issue that needs to be looked into
 - out.csv.err: Indicates that your reporter returned an exit code above zero.  Probably it crashed, and you want it to leave some troubleshooting information behind.
 
