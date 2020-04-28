@@ -256,7 +256,8 @@
 (defn read-json
   [story]
   (response/ok
-   (slurp story)))
+   {:file (slurp story)
+    :timestamp (sched/last-modified story)}))
 
 (defn read-story
   [prefix story]
