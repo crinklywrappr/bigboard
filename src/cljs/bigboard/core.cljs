@@ -482,7 +482,8 @@
 
 (db/request-schedules)
 
-(defn home-page []
+(defn home-page
+  [params]
   (let [container (component "Container")
         message (component "Message")
         header (component "Message" "Header")
@@ -498,10 +499,10 @@
 (def pages
   {:home #'home-page
    :home2 #'home-page
-   :story #(story/story-page (-> @session :params :schedule))})
+   :story #'story/story-page})
 
 (defn page []
-  [(pages (:page @session))])
+  [(pages (:page @session)) (:params @session)])
 
 ;; -------------------------
 ;; Routes

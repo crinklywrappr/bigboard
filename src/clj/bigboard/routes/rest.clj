@@ -232,7 +232,7 @@
   {:columns
    (map
     (fn [col]
-      {:name col
+      {:title col
        :data (->kebab-case-keyword col)})
     (first csv-data))
    :data
