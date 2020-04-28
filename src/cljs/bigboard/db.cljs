@@ -110,4 +110,4 @@
     :merge (merge-handler msg)
     :replace (replace-handler msg)
     :error (error-handler msg)
-    (.debug js/console ("Unknown command: " cmd))))
+    (.debug js/console "Unknown command: " cmd)))
