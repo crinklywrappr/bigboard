@@ -55,3 +55,7 @@ TODO
 ### bigboard isn't executing my perfectly written script
 
 Probably you need to edit `runners.edn` inside of the jar file.  Bigboard may not be aware of how to run your script.
+
+### Something is up with my cron schedule
+
+Please open an issue [here](https://github.com/crinklywrappr/gooff/issues)
