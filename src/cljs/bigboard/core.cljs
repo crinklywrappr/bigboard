@@ -2,12 +2,12 @@
   (:require
    [bigboard.sui :refer [component]]
    [bigboard.sched-form :as sf]
+   [bigboard.story :as story]
    [goog.object]
    [reagent.core :as r]
    [reagent.dom :as rdom]
    [goog.events :as events]
    [goog.history.EventType :as HistoryEventType]
-   [markdown.core :refer [md->html]]
    [bigboard.ajax :as ajax]
    [ajax.core :refer [GET POST DELETE PUT]]
    [reitit.core :as reitit]
@@ -27,8 +27,10 @@
 (defn nav-link [uri title page]
   (let [item (component "Menu" "Item")]
     [:> item
-     {:href uri
-      :active (str (= page (:page @session)))}
+     (if (some? uri)
+       {:href uri
+        :active (str (= page (:page @session)))}
+       {:active (str (= page (:page @session)))})
      title]))
 
 (defn navbar []
@@ -37,7 +39,8 @@
     [:> menu {:fixed "top" :inverted true :style {:height "60px"}}
      [:> container
       [:a.item.header {:href "#home"} "bigboard"]
-      [nav-link "/" "home" :home]]]))
+      (when (= (:page @session) :story)
+        [nav-link nil (-> @session :params :schedule) :story])]]))
 
 ;; --- begin: new modal ---
 
@@ -492,14 +495,10 @@
         [:p (:troubleshoot @db/schedules-err)]])
      [cards]]))
 
-(defn story-page []
-  [:h1
-   {:style {:padding-top "90px"}}
-   (-> @session :params :schedule)])
-
 (def pages
   {:home #'home-page
-   :story #'story-page})
+   :home2 #'home-page
+   :story #(story/story-page (-> @session :params :schedule))})
 
 (defn page []
   [(pages (:page @session))])
@@ -510,6 +509,7 @@
 (def router
   (reitit/router
    [["/" :home]
+    ["home" :home2]
     ["story/:schedule" :story]]))
 
 (defn match-route [uri]
