@@ -267,8 +267,6 @@
     (response/expectation-failed
      "Story expected to be either .csv or .json with a possible .prob extension")))
 
-(def x (atom nil))
-
 (defn get-story
   "If story is provided, we ignore the name
   parameter to avoid a database lookup.
@@ -285,7 +283,6 @@
          (response/not-found
           "Story missing from filesystem")))
      (catch Exception e
-       (reset! x e)
        (response/internal-server-error
         "Problem reading error story"))))
   ([name story]
