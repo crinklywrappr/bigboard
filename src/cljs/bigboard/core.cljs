@@ -321,8 +321,8 @@
     (if (< s 1)
       ["Blazing" "Under a second"]
       (if (< m 1)
-        ["Fast" (str s "seconds")]
-        ["Slow" (str m "minutes")]))))
+        ["Fast" (str s " seconds")]
+        ["Slow" (str m " minutes")]))))
 
 (defn runtimes
   [{:keys [status last-triggered last-finished next-run]}]
