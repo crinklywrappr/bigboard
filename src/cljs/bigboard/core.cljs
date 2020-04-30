@@ -480,8 +480,6 @@
         ^{:key (:name s)}
         [card s]))]))
 
-(db/request-schedules)
-
 (defn home-page
   [params]
   (let [container (component "Container")
@@ -535,8 +533,12 @@
 ;; Initialize app
 
 (defn mount-components []
-  (rdom/render [#'navbar] (.getElementById js/document "navbar"))
-  (rdom/render [#'page] (.getElementById js/document "app")))
+  (letfn [(f []
+            (rdom/render [#'navbar] (.getElementById js/document "navbar"))
+            (rdom/render [#'page] (.getElementById js/document "app")))]
+    (db/request-schedules
+     {:handler f
+      :error-handler f})))
 
 (defn init! []
   (ajax/load-interceptors!)

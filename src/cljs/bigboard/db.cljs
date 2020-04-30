@@ -34,24 +34,30 @@
            (reset! reporters nil)
            (reset! reporters-err (:response %)))}))
 
-(defn request-schedules []
-  (letfn [(created [m]
-            (update m :created #(js/moment (.-rep %))))
-          (cmp [a b]
-            (if (.isBefore a b)
-              1 -1))]
-    (GET "/schedules"
-         {:handler
-          #(do
-             (reset! schedules (sort-by :created cmp (map created %)))
-             (reset! schedules-err nil))
-          :error-handler
-          #(do
-             (reset! schedules nil)
-             (reset!
-              schedules-err
-              {:header "Problem Loading Schedules"
-               :troubleshoot "Contact your System Administrator"}))})))
+(defn request-schedules
+  ([{:keys [handler error-handler]}]
+   (letfn [(created [m]
+             (update m :created #(js/moment (.-rep %))))
+           (cmp [a b]
+             (if (.isBefore a b)
+               1 -1))]
+     (GET "/schedules"
+          {:handler
+           #(do
+              (reset! schedules (sort-by :created cmp (map created %)))
+              (reset! schedules-err nil)
+              (when (fn? handler)
+                (handler)))
+           :error-handler
+           #(do
+              (reset! schedules nil)
+              (reset!
+               schedules-err
+               {:header "Problem Loading Schedules"
+                :troubleshoot "Contact your System Administrator"})
+              (when (fn? error-handler)
+                (error-handler)))})))
+  ([] (request-schedules {})))
 
 (defn merge-schedule [name delta]
   (swap!
