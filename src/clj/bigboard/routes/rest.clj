@@ -247,9 +247,9 @@
   [story]
   (response/ok
    (assoc
-    (csv-data->maps
-     (csv/read-csv
-      (io/reader story)))
+    (with-open [reader (io/reader story)]
+      (csv-data->maps
+       (csv/read-csv reader)))
     :timestamp (sched/last-modified story))))
 
 ;; TODO: flesh out
