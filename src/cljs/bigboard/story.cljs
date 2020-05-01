@@ -60,14 +60,16 @@
   (case status
     :problem "exclamation"
     :success "check"
-    :stale "bug"))
+    :stale "bug"
+    "question"))
 
 (defn header-bg
   [status]
   (case status
     :problem "#ffd600"
     :success "#7cb342"
-    :stale "#bdbdbd"))
+    :stale "#bdbdbd"
+    "#42a5f5"))
 
 (def story-data (r/atom nil))
 (def story-err (r/atom nil))
