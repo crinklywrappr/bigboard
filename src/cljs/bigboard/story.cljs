@@ -81,47 +81,47 @@
         icon (component "Icon")
         content (component "Header" "Content")
         subheader (component "Header" "Subheader")
-        {:keys [name status story] :as schedule}
-        (some #(when (= name (:name %)) %) @db/schedules)
-        _ (reset! story-data nil)
-        _ (GET (str "/story?story=" story)
+        _ (GET (str "/story?name=" name)
                {:handler #(reset! story-data %)
                 :error-handler #(reset! story-err %)})]
     (fn []
-      [:div
-       [:> header
-        {:size "huge"
-         :icon true
-         :textAlign "center"
-         :style {:margin-top "110px"
-                 :margin-bottom "50px"
-                 :padding-top "28px"
-                 :padding-bottom "20px"
-                 :background (header-bg status)
-                 :color "white"}}
-        [:> icon
-         {:name (header-icon status)
-          :circular true
-          :loading (nil? @story-data)}]
-        name
-        (if (nil? @story-data)
-          [:> subheader {:color "grey"} "Loading..."]
-          [:> subheader
-           {:color "grey"}
-           (let [ts (-> @story-data
-                        :timestamp
-                        localdt->moment)]
-             (str "Last generated "
-                  (from-phrase ts (js/moment))
-                  " at " (format ts)))])]
-       (when @story-data
-         (let [{:keys [columns data]} @story-data]
-           (cond
-             (s/ends-with? story ".csv") [table columns data]
-             (s/ends-with? story ".json") [vega schedule]
-             :else
-             [:> header
-              {:as "h2"
-               :textAlign "center"
-               :style {:margin-top "80px"}}
-              "Unsupported Story type"])))])))
+      (when (some? @db/schedules)
+        (let [{:keys [name status story] :as schedule}
+              (some #(when (= name (:name %)) %) @db/schedules)]
+          [:div
+           [:> header
+            {:size "huge"
+             :icon true
+             :textAlign "center"
+             :style {:margin-top "110px"
+                     :margin-bottom "50px"
+                     :padding-top "28px"
+                     :padding-bottom "20px"
+                     :background (header-bg status)
+                     :color "white"}}
+            [:> icon
+             {:name (header-icon status)
+              :circular true
+              :loading (nil? @story-data)}]
+            name
+            (if (nil? @story-data)
+              [:> subheader {:color "grey"} "Loading..."]
+              [:> subheader
+               {:color "grey"}
+               (let [ts (-> @story-data
+                            :timestamp
+                            localdt->moment)]
+                 (str "Last generated "
+                      (from-phrase ts (js/moment))
+                      " at " (format ts)))])]
+           (when @story-data
+             (let [{:keys [columns data]} @story-data]
+               (cond
+                 (s/ends-with? story ".csv") [table columns data]
+                 (s/ends-with? story ".json") [vega schedule]
+                 :else
+                 [:> header
+                  {:as "h2"
+                   :textAlign "center"
+                   :style {:margin-top "80px"}}
+                  "Unsupported Story type"])))])))))

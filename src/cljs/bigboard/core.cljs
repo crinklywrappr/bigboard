@@ -312,6 +312,7 @@
       [:> button
        {:basic true
         :href (str "#story/" name)
+        :onClick #(reset! story/story-data nil)
         :color "green"
         :icon "arrow right"}])))
 
