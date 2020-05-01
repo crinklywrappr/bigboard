@@ -312,7 +312,8 @@
       [:> button
        {:basic true
         :href (str "#story/" name)
-        :onClick #(reset! story/story-data nil)
+        :onClick #(do (reset! story/story-data nil)
+                      (reset! story/story-err nil))
         :color "green"
         :icon "arrow right"}])))
 

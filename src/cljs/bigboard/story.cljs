@@ -23,7 +23,8 @@
      (clj->js
       {:columns columns
        :data data
-       :responsive true}))))
+       :responsive true
+       :deferRender true}))))
 
 (defn table-will-unmount
   [_]
@@ -83,12 +84,14 @@
         icon (component "Icon")
         content (component "Header" "Content")
         subheader (component "Header" "Subheader")
+        container (component "Container")
         _ (GET (str "/story?name=" name)
                {:handler #(reset! story-data %)
                 :error-handler #(reset! story-err %)})]
     (fn []
-      (when (some? @db/schedules)
-        (let [{:keys [name status story] :as schedule}
+      (if (some? @db/schedules)
+        (let [{:keys [name status story long-desc
+                      short-desc trouble] :as schedule}
               (some #(when (= name (:name %)) %) @db/schedules)]
           [:div
            [:> header
@@ -104,10 +107,16 @@
             [:> icon
              {:name (header-icon status)
               :circular true
-              :loading (nil? @story-data)}]
+              :loading (and (nil? @story-err)
+                            (nil? @story-data))}]
             name
-            (if (nil? @story-data)
+            (cond
+              (and (nil? @story-err)
+                   (nil? @story-data))
               [:> subheader {:color "grey"} "Loading..."]
+              (nil? @story-data)
+              [:> subheader {:color "grey"} "No timestamp"]
+              :else
               [:> subheader
                {:color "grey"}
                (let [ts (-> @story-data
@@ -116,14 +125,57 @@
                  (str "Last generated "
                       (from-phrase ts (js/moment))
                       " at " (format ts)))])]
-           (when @story-data
-             (let [{:keys [columns data]} @story-data]
-               (cond
-                 (s/ends-with? story ".csv") [table columns data]
-                 (s/ends-with? story ".json") [vega schedule]
-                 :else
+           (cond
+             (some? @story-data)
+             [:div
+              [:> container
+               {:style {:margin-bottom "50px"}}
+               [:> header
+                {:size "large"
+                 :textAlign "center"}
+                "Description"]
+               (if (seq long-desc)
+                 [:p long-desc]
+                 [:p {:style {:text-align "center"}} short-desc])]
+              (when (and (= status :problem)
+                         (seq trouble))
+                [:> container
+                 {:style {:margin-bottom "50px"}}
                  [:> header
-                  {:as "h2"
-                   :textAlign "center"
-                   :style {:margin-top "80px"}}
-                  "Unsupported Story type"])))])))))
+                  {:size "large"
+                   :textAlign "center"}
+                  "Troubleshooting"]
+                 [:p trouble]])
+              (let [{:keys [columns data]} @story-data]
+                (cond
+                  (s/ends-with? story ".csv") [table columns data]
+                  (s/ends-with? story ".json") [vega schedule]
+                  :else
+                  [:> header
+                   {:as "h2"
+                    :textAlign "center"
+                    :style {:margin-top "80px"}}
+                   "Unsupported Story type"]))]
+             (some? @story-err)
+             [:> container
+              [:> header
+               {:size "huge"
+                :textAlign "center"} "Error"]
+              [:> header
+               {:size "large"
+                :textAlign "center"} @story-err]])])
+        [:> header
+         {:size "huge"
+          :icon true
+          :textAlign "center"
+          :style {:margin-top "110px"
+                  :margin-bottom "50px"
+                  :padding-top "28px"
+                  :padding-bottom "20px"
+                  :background (header-bg :default)
+                  :color "white"}}
+         [:> icon
+          {:name (header-icon :default)
+           :circular true
+           :loading true}]
+         "Loading..."]))))
