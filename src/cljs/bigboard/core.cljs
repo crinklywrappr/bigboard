@@ -328,60 +328,56 @@
 
 (defn runtimes
   [{:keys [status last-triggered last-finished next-run]}]
-  (let [list (component "List")
-        item (component "List" "Item")
-        item-header (component "List" "Header")
-        segment (component "Segment")
-        grid (component "Grid")
-        row (component "Grid" "Row")
-        column (component "Grid" "Column")
-        divider (component "Divider")
+  (let [table (component "Table")
+        body (component "Table" "Body")
+        row (component "Table" "Row")
+        cell (component "Table" "Cell")
         header (component "Header")
+        list (component "List")
+        item (component "List" "Item")
+        item-icon (component "List" "Icon")
+        item-content (component "List" "Content")
+        item-header (component "List" "Header")
         nr (sf/localdt->moment next-run)]
     (if (= status :new)
-      [:> segment {:basic true}
-       [:> grid
-        {:divided true
-         :relaxed true}
-        [:> row {:columns 3}
-         [:> column {:textAlign "center"}
-          [:> header {:as "h4"} "Last run"]
-          [:> list {:size "small" :style {:color "gray" :font-style "italic"}}
-           [:> item "Has not run yet"]]]
-         [:> column {:textAlign "center"}
-          [:> header {:as "h4"} "Runtime"]
-          [:> list {:size "small" :style {:color "gray" :font-style "italic"}}
-           [:> item "Has not run yet"]]]
-         [:> column {:textAlign "center"}
-          [:> header {:as "h4"} "Next run"]
+      [:> table {:basic "very" :celled "true"}
+       [:> body
+        [:> row
+         [:> cell
+          [:> header {:size "huge"} "?"]]
+         [:> cell
           [:> list {:size "small" :style {:color "gray" :font-style "italic"}}
            [:> item
             [:> item-header (sf/format nr)]
-            (sf/to-phrase (js/moment) nr)]]]]]]
+            (sf/to-phrase (js/moment) nr)]]]]
+        [:> row
+         [:> cell
+          [:> header {:size "huge"} "?"]]
+         [:> cell]]]]
       (let [lt (sf/localdt->moment last-triggered)
             lf (sf/localdt->moment last-finished)
             [cat desc] (get-duration lt lf)]
-        [:> segment {:basic true}
-         [:> grid
-          {:divided true
-           :relaxed true}
-          [:> row {:columns 3}
-           [:> column {:textAlign "center"}
-            [:> header {:as "h4"} "Last run"]
+        [:> table {:basic "very" :celled "true"}
+         [:> body
+          [:> row
+           [:> cell
             [:> list {:size "small" :style {:color "gray" :font-style "italic"}}
              [:> item
-              [:> item-header (sf/format lt)]
-              (sf/from-phrase lt (js/moment))]]]
-           [:> column {:textAlign "center"}
-            [:> header {:as "h4"} "Runtime"]
-            [:> list {:size "small" :style {:color "gray" :font-style "italic"}}
-             [:> item [:> item-header cat] desc]]]
-           [:> column {:textAlign "center"}
-            [:> header {:as "h4"} "Next run"]
+              [:> item-content
+               [:> item-header (sf/format lt)]
+               (sf/from-phrase lt (js/moment))]]]]
+           [:> cell
             [:> list {:size "small" :style {:color "gray" :font-style "italic"}}
              [:> item
               [:> item-header (sf/format nr)]
-              (sf/to-phrase (js/moment) nr)]]]]]]))))
+              (sf/to-phrase (js/moment) nr)]]]]
+          [:> row
+           [:> cell
+            [:> list {:size "small" :style {:color "gray" :font-style "italic"}}
+             [:> item [:> item-header cat] desc]]]
+           [:> cell]]]]))))
+
+(def detail-schedule (r/atom nil))
 
 (defn card
   [{:keys [name contact short-desc
@@ -397,80 +393,77 @@
         icon (component "Icon")
         dimmer (component "Dimmer")
         dimmable (component "Dimmer" "Dimmable")
-        loader (component "Loader")
-        popup (component "Popup")
-        content (component "Popup" "Content")]
-    [:> popup
-     {:wide "very"
-      :flowing true
-      :basic true
-      :trigger
-      (r/as-element
-       [:> card {:color (get-card-color status)}
-        [:> dimmable
-         {:as content}
-         (cond
-           (= status :running)
-           [:> dimmer
-            {:active true
-             :inverted true}
-            [:> loader "Running"]]
-           (= status :server-error)
-           [:> dimmer
-            {:active true
-             :style {:backgroundColor "rgba(183, 28, 28, 0.85)"}}
-            "Server Error"]
-           (= status :not-found)
-           [:> dimmer
-            {:active true
-             :style {:backgroundColor "rgba(183, 28, 28, 0.85)"}}
-            "Not Found"]
-           :else [:> dimmer {:active false}])
-         (cond
-           (some (partial = status) [:new :success])
-           [:> icon {:style {:float "right"}
-                     :size "big"
-                     :name "check"
-                     :color "green"}]
-           (= status :problem)
-           [:> icon {:style {:float "right"}
-                     :size "big"
-                     :name "exclamation"
-                     :color "yellow"}]
-           (= status :stale)
-           [:> icon {:style {:float "right"}
-                     :size "big"
-                     :name "bug"
-                     :color "grey"}]
-           (some (partial = status) [:mia :bad :no-story])
-           [:> icon {:style {:float "right"}
-                     :size "big"
-                     :name "exclamation"
-                     :color "blue"}]
-           (= status :error)
-           [:> icon {:style {:float "right"}
-                     :size "big"
-                     :name "bomb"
-                     :color "red"}])
-         [:> header name]
-         [:> meta contact]
-         [:> desc short-desc]]
-        [:> content
-         {:extra "true"
-          :class "card-bottom"
-          :style {:max-height "fit-content"}}
-         [:> button-group {:class ["four"]}
-          [delete-modal name status]
-          [update-modal name]
-          [:> button
-           {:basic true
-            :disabled (some (partial = status) [:mia :bad :running])
-            :color "blue"
-            :icon "terminal"
-            :onClick #(POST "/trigger" {:params {:name name}})}]
-          [read-story sched]]]])}
+        loader (component "Loader")]
+    [:> card {:color (get-card-color status)}
+     [:> dimmable
+      {:as content
+       :onMouseEnter #(reset! detail-schedule name)
+       :onMouseLeave #(reset! detail-schedule nil)}
+      (cond
+        (= status :running)
+        [:> dimmer
+         {:active true
+          :inverted true}
+         [:> loader "Running"]]
+        (= status :server-error)
+        [:> dimmer
+         {:active true
+          :style {:backgroundColor "rgba(183, 28, 28, 0.85)"}}
+         "Server Error"]
+        (= status :not-found)
+        [:> dimmer
+         {:active true
+          :style {:backgroundColor "rgba(183, 28, 28, 0.85)"}}
+         "Not Found"]
+        (= @detail-schedule name)
+        [:> dimmer
+         {:active true
+          :inverted true}
+         [runtimes sched]]
+        :else [:> dimmer {:active false}])
+      (cond
+        (some (partial = status) [:new :success])
+        [:> icon {:style {:float "right"}
+                  :size "big"
+                  :name "check"
+                  :color "green"}]
+        (= status :problem)
+        [:> icon {:style {:float "right"}
+                  :size "big"
+                  :name "exclamation"
+                  :color "yellow"}]
+        (= status :stale)
+        [:> icon {:style {:float "right"}
+                  :size "big"
+                  :name "bug"
+                  :color "grey"}]
+        (some (partial = status) [:mia :bad :no-story])
+        [:> icon {:style {:float "right"}
+                  :size "big"
+                  :name "exclamation"
+                  :color "blue"}]
+        (= status :error)
+        [:> icon {:style {:float "right"}
+                  :size "big"
+                  :name "bomb"
+                  :color "red"}])
+      [:> header name]
+      [:> meta contact]
+      [:> desc short-desc]]
      [:> content
-      [runtimes sched]]]))
+      {:extra "true"
+       :class "card-bottom"
+       :style {:max-height "fit-content"}}
+      [:> button-group {:class ["four"]}
+       [delete-modal name status]
+       [update-modal name]
+       [:> button
+        {:basic true
+         :disabled (some (partial = status) [:mia :bad :running])
+         :color "blue"
+         :icon "terminal"
+         :onClick #(POST "/trigger" {:params {:name name}})}]
+       [read-story sched]]]]))
 
 (defn cards []
   (let [group (component "Card" "Group")]
