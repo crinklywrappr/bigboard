@@ -41,6 +41,17 @@ Stories can have 3 different extensions.  If your story is, for example, `out.cs
 
 If your story crashes and it hasn't generated a `.err` file, the frontend will display an exit code for you.
 
+### Coloring Table Rows
+
+If you have a csv story and want to highlight certain rows, do this:
+
+1. Add a column 'bigboard-story-class'
+2. Give it one of the following values
+  a. csv-success
+  b. csv-danger
+  c. csv-warning
+  d. csv-info
+
 ## Running
 
 To start a web server for the application, run

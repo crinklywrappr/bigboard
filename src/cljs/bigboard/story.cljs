@@ -1,5 +1,6 @@
 (ns bigboard.story
   (:require
+   [goog.object :as g]
    [reagent.core :as r]
    [bigboard.sui :refer [component]]
    [bigboard.db :as db]
@@ -15,16 +16,24 @@
      [:table.ui.celled.table
       {:ref "main" :width "100%"}]]))
 
+(defn decorate
+  [row data idx]
+  (when-let [class (g/get data "bigboard-story-class")]
+    (.addClass (js/$ row) class)))
+
 (defn table-did-mount
   [columns data]
   (fn [^js/React.Component this]
     (.DataTable
      (-> this .-refs .-main js/$)
      (clj->js
-      {:columns columns
+      {:columns (remove
+                 #(= (:data %) :bigboard-story-class)
+                 columns)
        :data data
        :responsive true
-       :deferRender true}))))
+       :deferRender true
+       :rowCallback decorate}))))
 
 (defn table-will-unmount
   [_]

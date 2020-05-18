@@ -1,4 +1,4 @@
-(defproject bigboard "0.0.2"
+(defproject bigboard "0.0.3"
 
   :description "Monitoring station with web interface & cron scheduling. "
   :url "http://example.com/FIXME"
