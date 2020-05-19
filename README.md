@@ -47,10 +47,10 @@ If you have a csv story and want to highlight certain rows, do this:
 
 1. Add a column 'bigboard-story-class'
 2. Give it one of the following values
-  a. csv-success
-  b. csv-danger
-  c. csv-warning
-  d. csv-info
+  - csv-success
+  - csv-danger
+  - csv-warning
+  - csv-info
 
 ## Running
 
