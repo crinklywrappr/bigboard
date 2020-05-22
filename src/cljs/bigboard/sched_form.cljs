@@ -201,7 +201,7 @@
         [:> header {:as "h4"} "Table"]
         [:p "A Story containing a comma-delimited table."]]
        [:> column {:textAlign "center"}
-        [:> header {:as "h4"} "Vega-lite"]
+        [:> header {:as "h4"} "Vega"]
         [:p "A Story containing a interactive charts & graphs"]]]]]))
 
 (defn check-story-input [event data]

@@ -8,7 +8,11 @@
                                 from-phrase
                                 format]]
    [ajax.core :refer [GET]]
-   [clojure.string :as s]))
+   [clojure.string :as s]
+   [cljsjs.vega-embed]
+   [cognitect.transit :as t]))
+
+(def reader (t/reader :json))
 
 (defn table-render []
   (let [container (component "Container")]
@@ -54,14 +58,31 @@
 
 ;; -----
 
+(defn vega-render []
+  (let [container (component "Container")]
+    [:> container
+     [:div
+      {:style {:width "100%"
+               :text-align "center"}}
+      [:div {:id "vis"}]]]))
+
+(defn vega-did-mount
+  [spec]
+  (fn []
+    (js/vegaEmbed
+     "#vis"
+     (clj->js spec))))
+
+(defn vega-will-unmount []
+  (.empty (js/$ "#vis")))
+
 (defn vega
-  [schedule]
-  (let [header (component "header")]
-    [:> header
-     {:as "h2"
-      :textAlign "center"
-      :style {:margin-top "80px"}}
-     "Vega support is in the works"]))
+  [spec]
+  (r/create-class
+   {:reagent-render vega-render
+    :component-did-mount (vega-did-mount spec)
+    :component-will-unmount vega-will-unmount
+    :should-component-update (fn [& args] false)}))
 
 ;; -----
 
@@ -85,7 +106,7 @@
 (def story-err (r/atom nil))
 
 (defn story-page
-  "I don't what the story page to recieve
+  "ATM I don't want the story page to recieve
     updates, so there will be no ratoms"
   [params]
   (let [name (:schedule params)
@@ -155,16 +176,19 @@
                    :textAlign "center"}
                   "Troubleshooting"]
                  [:p trouble]])
-              (let [{:keys [columns data]} @story-data]
-                (cond
-                  (s/ends-with? story ".csv") [table columns data]
-                  (s/ends-with? story ".json") [vega schedule]
-                  :else
-                  [:> header
-                   {:as "h2"
-                    :textAlign "center"
-                    :style {:margin-top "80px"}}
-                   "Unsupported Story type"]))]
+              (cond
+                (s/ends-with? story ".csv")
+                (let [{:keys [columns data]} @story-data]
+                  [table columns data])
+                (s/ends-with? story ".json")
+                (let [spec (t/read reader (:file @story-data))]
+                  [vega spec])
+                :else
+                [:> header
+                 {:as "h2"
+                  :textAlign "center"
+                  :style {:margin-top "80px"}}
+                 "Unsupported Story type"])]
              (some? @story-err)
              [:> container
               [:> header
