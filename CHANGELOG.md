@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file. This change
 ### Changed
 - Nothing yet
 
+## [0.0.4] - 2020-5-22
+### Added
+- Vega support!
+
 ## [0.0.3] - 2020-5-19
 ### Added
 - Users can highlight rows within CSV stories 
@@ -20,6 +24,7 @@ All notable changes to this project will be documented in this file. This change
 ## 0.0.1 - 2020-4-28
 ### Initial release
 
-[Unreleased]: https://github.com/crinklywrappr/bigboard/compare/v0.0.3...HEAD
+[Unreleased]: https://github.com/crinklywrappr/bigboard/compare/v0.0.4...HEAD
+[0.0.4] :https://github.com/crinklywrappr/bigboard/compare/v0.0.3...v0.0.4
 [0.0.3]: https://github.com/crinklywrappr/bigboard/compare/v0.0.2...v0.0.3
 [0.0.2]: https://github.com/crinklywrappr/bigboard/compare/v0.0.1...v0.0.2
