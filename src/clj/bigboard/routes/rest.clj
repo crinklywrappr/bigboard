@@ -2,6 +2,7 @@
   (:require
    [clojure.data.csv :as csv]
    [clojure.java.io :as io]
+   [cheshire.core :as json]
    [bigboard.middleware :as middleware]
    [bigboard.config :as cfg]
    [bigboard.db.model :as db]
@@ -252,11 +253,11 @@
        (csv/read-csv reader)))
     :timestamp (sched/last-modified story))))
 
-;; TODO: flesh out
 (defn read-json
   [story]
   (response/ok
-   {:file (slurp story)
+   {:spec (with-open [reader (io/reader story)]
+            (json/parse-stream reader))
     :timestamp (sched/last-modified story)}))
 
 (defn read-story

@@ -9,10 +9,7 @@
                                 format]]
    [ajax.core :refer [GET]]
    [clojure.string :as s]
-   [cljsjs.vega-embed]
-   [cognitect.transit :as t]))
-
-(def reader (t/reader :json))
+   [cljsjs.vega-embed]))
 
 (defn table-render []
   (let [container (component "Container")]
@@ -181,8 +178,7 @@
                 (let [{:keys [columns data]} @story-data]
                   [table columns data])
                 (s/ends-with? story ".json")
-                (let [spec (t/read reader (:file @story-data))]
-                  [vega spec])
+                [vega (:spec @story-data)]
                 :else
                 [:> header
                  {:as "h2"
