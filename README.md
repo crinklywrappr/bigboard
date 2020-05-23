@@ -71,3 +71,9 @@ Probably you need to edit `runners.edn` inside of the jar file.  Bigboard may no
 ### Something is up with my cron schedule
 
 Please open an issue [here](https://github.com/crinklywrappr/gooff/issues)
+
+## TODO
+
+- Statistics
+- Search bar
+- Archival & Data warehousing?
