@@ -77,3 +77,4 @@ Please open an issue [here](https://github.com/crinklywrappr/gooff/issues)
 - Statistics
 - Search bar
 - Archival & Data warehousing?
+- Tutorial
