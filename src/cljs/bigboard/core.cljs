@@ -4,6 +4,7 @@
    [bigboard.sched-form :as sf]
    [bigboard.story :as story]
    [goog.object]
+   [goog.functions :refer [debounce]]
    [reagent.core :as r]
    [reagent.dom :as rdom]
    [goog.events :as events]
@@ -189,6 +190,40 @@
         [update-button close]]])))
 
 ;; --- end: update modal
+
+;; --- begin: searchbar
+
+(def searching? (r/atom false))
+(def matching-schedules (r/atom []))
+
+(defn search [schedules s]
+  (js/setTimeout
+   (fn []
+     (reset! searching? false))
+   1000)
+  (reset! searching? true))
+
+(add-watch
+ db/schedules :search
+ (fn [_ _ _ new]
+   (search new (.val (js/$ "#searchbar")))))
+
+(defn searchbar []
+  (let [search (component "Search")]
+    [:> search
+     {:style
+      {:width "100%"}
+      :id "searchbar"
+      :showNoResults false
+      :loading @searching?
+      :onSearchChange
+      (debounce
+       (fn [e val]
+         (bigboard.core/search
+          @db/schedules val))
+       500)}]))
+
+;; --- end: searchbar
 
 (defn delete-modal [name status]
   (let [group (component "Button" "Group")
@@ -482,8 +517,7 @@
   (let [container (component "Container")
         message (component "Message")
         header (component "Message" "Header")
-        button (component "Button")
-        search (component "Search")]
+        button (component "Button")]
     [:> container {:style {:margin-top "100px"}}
      [:div
       [new-modal]
@@ -491,9 +525,7 @@
        {:style
         {:display "inline-block"
          :width "60%" :float "right"}}
-       [:> search
-        {:style
-         {:width "100%"}}]]]
+       [searchbar]]]
      (when (some? @db/schedules-err)
        [:> message {:negative true}
         [:> header (:header @db/schedules-err)]
