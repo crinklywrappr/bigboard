@@ -482,9 +482,18 @@
   (let [container (component "Container")
         message (component "Message")
         header (component "Message" "Header")
-        button (component "Button")]
+        button (component "Button")
+        search (component "Search")]
     [:> container {:style {:margin-top "100px"}}
-     [new-modal]
+     [:div
+      [new-modal]
+      [:div
+       {:style
+        {:display "inline-block"
+         :width "60%" :float "right"}}
+       [:> search
+        {:style
+         {:width "100%"}}]]]
      (when (some? @db/schedules-err)
        [:> message {:negative true}
         [:> header (:header @db/schedules-err)]

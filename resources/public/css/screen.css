@@ -48,3 +48,11 @@ body {
 .csv-info {
     background-color: #bee5eb;
 }
+
+.ui.icon.input {
+    width: 100%;
+}
+
+.ui.search .prompt {
+    border-radius: 0.25rem !important;
+}
