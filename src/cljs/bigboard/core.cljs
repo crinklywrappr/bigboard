@@ -15,7 +15,8 @@
    [clojure.string :as string]
    [cljsjs.moment]
    [bigboard.ws :as ws]
-   [bigboard.db :as db])
+   [bigboard.db :as db]
+   [clojure.string :as s])
   (:import goog.History))
 
 ;; (set! *warn-on-infer* true)
@@ -194,14 +195,42 @@
 ;; --- begin: searchbar
 
 (def searching? (r/atom false))
-(def matching-schedules (r/atom []))
+(def matching-schedules (r/atom nil))
+
+(defn strict-match? [s1 s2]
+  (when (and (seq s1) (seq s2))
+    (= s1 s2)))
+
+(defn re-valid? [r]
+  (try
+    (re-pattern r)
+    (catch js/Error e
+      nil)))
+
+(defn re-match? [r s]
+  (when (seq s)
+    (when-let [r (re-valid? r)]
+      (seq (re-seq r s)))))
+
+(defn matches? [s {:keys [name short-desc]}]
+  (or (strict-match? s name)
+      (strict-match? s short-desc)
+      (re-match? s name)
+      (re-match? s short-desc)
+      (every?
+       true?
+       (for [x (s/split s #" ")
+             s [name short-desc]]
+         (re-match? x s)))))
 
 (defn search [schedules s]
   (js/setTimeout
    (fn []
      (reset! searching? false))
    1000)
-  (reset! searching? true))
+  (reset! searching? true)
+  (reset! matching-schedules
+          (filter (partial matches? s) schedules)))
 
 (add-watch
  db/schedules :search
@@ -211,8 +240,7 @@
 (defn searchbar []
   (let [search (component "Search")]
     [:> search
-     {:style
-      {:width "100%"}
+     {:style {:width "100%"}
       :id "searchbar"
       :showNoResults false
       :loading @searching?
@@ -220,7 +248,7 @@
       (debounce
        (fn [e val]
          (bigboard.core/search
-          @db/schedules val))
+          @db/schedules (.-value val)))
        500)}]))
 
 ;; --- end: searchbar
@@ -506,7 +534,8 @@
                :stackable true
                :style {:margin-top "80px"}}
      (doall
-      (for [s @db/schedules]
+      (for [s (or @matching-schedules
+                  @db/schedules [])]
         ^{:key (:name s)}
         [card s]))]))
 
