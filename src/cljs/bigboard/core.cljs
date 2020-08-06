@@ -235,7 +235,7 @@
 (add-watch
  db/schedules :search
  (fn [_ _ _ new]
-   (search new (.val (js/$ "#searchbar")))))
+   (search new (or (.val (js/$ "#searchbar")) ""))))
 
 (defn searchbar []
   (let [search (component "Search")]
